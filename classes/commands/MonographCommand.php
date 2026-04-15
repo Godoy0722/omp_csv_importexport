@@ -16,6 +16,7 @@
 
 namespace APP\plugins\importexport\csv\classes\commands;
 
+use APP\core\Application;
 use APP\facades\Repo;
 use APP\file\PublicFileManager;
 use APP\plugins\importexport\csv\classes\cachedAttributes\CachedDaos;
@@ -24,7 +25,6 @@ use APP\plugins\importexport\csv\classes\processors\PublicationFormatProcessor;
 use APP\plugins\importexport\csv\classes\processors\PublicationProcessor;
 use APP\plugins\importexport\csv\classes\processors\SectionsProcessor;
 use APP\plugins\importexport\csv\classes\processors\SubmissionProcessor;
-use APP\plugins\importexport\csv\classes\validations\InvalidRowValidations;
 use APP\plugins\importexport\csv\classes\validations\RequiredMonographHeaders;
 use APP\plugins\importexport\csv\shared\exceptions\RowValidationException;
 use APP\plugins\importexport\csv\shared\handlers\CSVFileHandler;
@@ -34,10 +34,12 @@ use APP\plugins\importexport\csv\shared\processors\CategoriesProcessor;
 use APP\plugins\importexport\csv\shared\processors\FundersProcessor;
 use APP\plugins\importexport\csv\shared\processors\KeywordsProcessor;
 use APP\plugins\importexport\csv\shared\processors\SubjectsProcessor;
+use APP\plugins\importexport\csv\shared\validations\InvalidRowValidations;
 use APP\publication\Publication;
 use APP\submission\Submission;
 use Illuminate\Support\Facades\DB;
 use PKP\file\FileManager;
+use PKP\services\PKPFileService;
 use PKP\user\User;
 
 class MonographCommand
@@ -56,7 +58,14 @@ class MonographCommand
 
     private FileManager $fileManager;
 
+    private PKPFileService $fileService;
+
     private User $user;
+
+    /** @var string[] */
+    private array $dirNames;
+
+    private string $format;
 
     /**
      * Array to track processed monographs by identifier, version, and locale.
@@ -168,13 +177,14 @@ class MonographCommand
                         InvalidRowValidations::validateFunders($data->funders);
                     }
 
+                    $fileUploadUser = $this->user;
                     $csvUser = null;
                     $usedDefaultUser = false;
                     if (!empty($data->username)) {
                         $csvUser = CachedEntities::getCachedUserByUsername($data->username, true);
-                        if (!$csvUser) {
-                            $usedDefaultUser = true;
-                        }
+                        $csvUser
+                            ? $fileUploadUser = $csvUser
+                            : $usedDefaultUser = true;
                     }
                     $hasValidCsvUser = !empty($data->username) && !$usedDefaultUser && isset($csvUser);
 
@@ -220,8 +230,10 @@ class MonographCommand
                     $basePublication = null; /** @var null|Publication */
                     $isMultiLocaleImport = false;
 
-                    if (!empty($data->versionIdentifier) &&
-                        InvalidRowValidations::versionExistsInAnyLocale($data, $this->processedMonographs)) {
+                    if (
+                            !empty($data->versionIdentifier)
+                            && InvalidRowValidations::versionExistsInAnyLocale($data, $this->processedMonographs)
+                        ) {
                         $version = (int)$data->version;
                         $versionData = $this->processedMonographs[$data->versionIdentifier][$version];
 
@@ -269,15 +281,36 @@ class MonographCommand
 
                     // OMP-specific: Create publication format, date, and attach submission files
                     // In OMP, files are attached to PublicationFormats (not galleys)
-                    if (!$isMultiLocaleImport && !($existingSubmission && $basePublication)) {
+                    // Create for new submissions AND new versions, but not multi-locale imports
+                    if (!$isMultiLocaleImport) {
                         $publicationFormatId = PublicationFormatProcessor::createPublicationFormat(
                             $publication->getId(),
-                            $data->locale,
                             $data->doi ?? null
                         );
 
                         if (!empty($data->year)) {
                             PublicationFormatProcessor::createPublicationDate($publicationFormatId, $data->year);
+                        }
+
+                        // Attach PDF file to the publication format if filename provided
+                        if (!$this->dryMode && !empty($data->filename)) {
+                            $filePath = "{$this->sourceDir}/{$data->filename}";
+                            $extension = $this->fileManager->parseFileExtension($data->filename);
+                            $submissionDir = sprintf($this->format, $press->getId(), $submission->getId());
+
+                            $fileId = $this->fileService->add(
+                                $filePath,
+                                $submissionDir . '/' . uniqid() . '.' . $extension
+                            );
+
+                            PublicationFormatProcessor::createSubmissionFile(
+                                $submission->getId(),
+                                $publicationFormatId,
+                                $fileId,
+                                $genreId,
+                                $data->locale,
+                                $fileUploadUser
+                            );
                         }
                     }
 
@@ -419,8 +452,11 @@ class MonographCommand
     /** Insert static data that will be used for the submission processing */
     private function initializeStaticVariables(): void
     {
+        $this->dirNames ??= Application::getFileDirectories();
+        $this->format ??= trim($this->dirNames['context'], '/') . '/%d/' . trim($this->dirNames['submission'], '/') . '/%d';
         $this->fileManager ??= new FileManager();
         $this->publicFileManager ??= new PublicFileManager();
+        $this->fileService ??= app()->get('file');
     }
 
     /**

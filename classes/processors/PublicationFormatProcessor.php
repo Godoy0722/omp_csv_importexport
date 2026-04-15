@@ -31,7 +31,6 @@ class PublicationFormatProcessor
      */
     public static function createPublicationFormat(
         int $publicationId,
-        string $locale,
         ?string $doi = null
     ): int {
         $publicationFormatDao = CachedDaos::getPublicationFormatDao();
@@ -43,9 +42,9 @@ class PublicationFormatProcessor
         $publicationFormat->setIsAvailable(true);
         $publicationFormat->setProductAvailabilityCode('20'); // ONIX code for Available
         $publicationFormat->setEntryKey('DA'); // ONIX code for Digital
-        $publicationFormat->setData('name', 'PDF', $locale);
         $publicationFormat->setSequence(REALLY_BIG_NUMBER);
-        $publicationFormatId = $publicationFormatDao->insertObject($publicationFormat);
+        $publicationFormatDao->insertObject($publicationFormat);
+        $publicationFormatId = $publicationFormat->getId();
 
         if ($doi) {
             $publicationFormat->setStoredPubId('doi', $doi);
@@ -93,9 +92,10 @@ class PublicationFormatProcessor
         $submissionFile->setData('mimetype', 'application/pdf');
         $submissionFile->setData('fileId', $fileId);
 
-        // Assume open access, no price
+        // Assume open access, no price, viewable
         $submissionFile->setDirectSalesPrice(0);
         $submissionFile->setSalesType('openAccess');
+        $submissionFile->setData('viewable', true);
 
         Repo::submissionFile()->add($submissionFile);
     }

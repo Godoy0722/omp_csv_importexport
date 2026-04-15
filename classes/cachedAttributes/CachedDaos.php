@@ -16,13 +16,11 @@
 
 namespace APP\plugins\importexport\csv\classes\cachedAttributes;
 
-use APP\facades\Repo;
 use APP\press\PressDAO;
 use APP\publicationFormat\PublicationFormatDAO;
 use APP\publicationFormat\PublicationDateDAO;
 use PKP\db\DAO;
 use PKP\db\DAORegistry;
-use PKP\submission\GenreDAO;
 
 class CachedDaos
 {
@@ -33,18 +31,6 @@ class CachedDaos
     public static function getPressDao(): PressDAO
     {
         return self::$cachedDaos['PressDAO'] ??= DAORegistry::getDAO('PressDAO');
-    }
-
-    /** Retrieves the cached GenreDAO instance. */
-    public static function getGenreDao(): GenreDAO
-    {
-        return self::$cachedDaos['GenreDAO'] ??= DAORegistry::getDAO('GenreDAO');
-    }
-
-    /** Retrieves the cached CategoryDAO instance. */
-    public static function getCategoryDao()
-    {
-        return Repo::category()->dao;
     }
 
     /** Retrieves the cached PublicationFormatDAO instance. */

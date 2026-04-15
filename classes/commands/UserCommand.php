@@ -17,7 +17,6 @@
 namespace APP\plugins\importexport\csv\classes\commands;
 
 use APP\plugins\importexport\csv\classes\cachedAttributes\CachedEntities;
-use APP\plugins\importexport\csv\classes\validations\InvalidRowValidations;
 use APP\plugins\importexport\csv\classes\validations\RequiredUserHeaders;
 use APP\plugins\importexport\csv\shared\exceptions\RowValidationException;
 use APP\plugins\importexport\csv\shared\handlers\CSVFileHandler;
@@ -27,6 +26,7 @@ use APP\plugins\importexport\csv\shared\handlers\WelcomeEmailHandler;
 use APP\plugins\importexport\csv\shared\processors\UserGroupsProcessor;
 use APP\plugins\importexport\csv\shared\processors\UserInterestsProcessor;
 use APP\plugins\importexport\csv\shared\processors\UsersProcessor;
+use APP\plugins\importexport\csv\shared\validations\InvalidRowValidations;
 use Illuminate\Support\Facades\DB;
 use PKP\security\Validation;
 use PKP\user\User;

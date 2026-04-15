@@ -64,6 +64,8 @@ class CachedEntities extends SharedCachedEntities
     /**
      * Override shared method — OMP Section uses getPath() instead of getAbbrev().
      * Retrieves a cached Section by title and path, for a given locale and contextId.
+     *
+     * @overrides SharedCachedEntities::getCachedSection()
      */
     static function getCachedSection(string $sectionTitle, string $sectionAbbrev, string $locale, int $contextId): ?Section
     {
@@ -90,6 +92,8 @@ class CachedEntities extends SharedCachedEntities
 
     /**
      * Override shared method — OMP Section uses getPath() instead of getAbbrev().
+     *
+     * @overrides SharedCachedEntities::getCachedSectionById()
      */
     static function getCachedSectionById(int $baseSectionId, int $contextId, string $locale): ?Section
     {

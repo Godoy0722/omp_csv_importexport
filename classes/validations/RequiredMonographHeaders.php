@@ -28,6 +28,7 @@ class RequiredMonographHeaders
         'monographSubtitle',
         'monographAbstract',
         'authors',
+        'filename',
         'keywords',
         'subjects',
         'coverage',

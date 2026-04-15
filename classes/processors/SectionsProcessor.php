@@ -18,15 +18,13 @@ namespace APP\plugins\importexport\csv\classes\processors;
 
 use APP\facades\Repo;
 use APP\plugins\importexport\csv\classes\cachedAttributes\CachedEntities;
-use APP\plugins\importexport\csv\shared\cachedAttributes\CachedEntities as SharedCachedEntities;
 use APP\plugins\importexport\csv\shared\processors\SectionsProcessor as SharedSectionsProcessor;
 use APP\publication\Publication;
 
 class SectionsProcessor extends SharedSectionsProcessor
 {
     /**
-     * Override shared method — OMP Section does not have OJS-specific methods
-     * like setMetaIndexed, setMetaReviewed, setAbstractsNotRequired, etc.
+     * @overrides shared method
      */
     public static function newSectionToPublication(object $data, int $contextId, Publication $publication): void
     {
@@ -43,7 +41,7 @@ class SectionsProcessor extends SharedSectionsProcessor
 
         $createdSection = Repo::section()->get($sectionId, $contextId);
         $customSectionKey = $data->sectionTitle . '_' . mb_strtoupper(trim($data->sectionAbbrev));
-        SharedCachedEntities::$sections[$customSectionKey] = $createdSection;
+        CachedEntities::$sections[$customSectionKey] = $createdSection;
 
         PublicationProcessor::updateSeriesId($publication, $sectionId);
     }
@@ -85,12 +83,10 @@ class SectionsProcessor extends SharedSectionsProcessor
                 return;
             }
 
-            // Create new series — map OMP fields to shared expected fields
-            $sectionData = clone $data;
-            $sectionData->sectionTitle = $data->seriesTitle;
-            $sectionData->sectionAbbrev = $data->seriesPath ?? mb_strtolower(trim($data->seriesTitle));
+            $data->sectionTitle = $data->seriesTitle;
+            $data->sectionAbbrev = $data->seriesPath ?? mb_strtolower(trim($data->seriesTitle));
 
-            static::newSectionToPublication($sectionData, $pressId, $publication);
+            static::newSectionToPublication($data, $pressId, $publication);
         }
     }
 }
