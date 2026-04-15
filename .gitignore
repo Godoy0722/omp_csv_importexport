@@ -1,0 +1,6 @@
+docs/
+*.zip
+examples/monographs/*
+!examples/monographs/*.csv
+examples/users/*
+!examples/users/*.csv
