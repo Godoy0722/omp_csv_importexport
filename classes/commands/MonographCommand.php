@@ -224,6 +224,13 @@ class MonographCommand
                         if (!$bookCoverImageSaved) {
                             throw new RowValidationException(__('plugins.importexport.csv.erroWhileSavingBookCoverImage'));
                         }
+
+                        Repo::publication()->makeThumbnail(
+                            $destFilePath,
+                            Repo::publication()->getThumbnailFileName($coverImageUploadName),
+                            (int) $press->getData('coverThumbnailsMaxWidth'),
+                            (int) $press->getData('coverThumbnailsMaxHeight')
+                        );
                     }
 
                     $existingSubmission = null; /** @var null|Submission */
