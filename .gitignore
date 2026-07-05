@@ -1,6 +1,6 @@
-*.zip
-examples/monographs/*
-!examples/monographs/*.csv
-examples/users/*
-!examples/users/*.csv
+examples/**/*
+!examples/**/*.csv
 imports
+examples/**/invalid_*.csv
+examples/**/*.zip
+docs/superpowers/

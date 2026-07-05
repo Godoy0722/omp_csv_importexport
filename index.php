@@ -11,4 +11,4 @@
  *
  */
 
-return new \APP\plugins\importexport\csv\CSVImportExportPlugin();
+return new \APP\plugins\importexport\csv\CSVImportPlugin();

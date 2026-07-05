@@ -7,7 +7,7 @@
 To import users from a CSV file, use the following command:
 
 ```bash
-php tools/importExport.php CSVImportExportPlugin users [username] [pathToFolderWithCsvFiles] [--sendWelcomeEmail]
+php tools/importExport.php CSVImportPlugin users [username] [pathToFolderWithCsvFiles] [--sendWelcomeEmail]
 ```
 
 Parameters:
@@ -17,7 +17,7 @@ Parameters:
 
 Example:
 ```bash
-php tools/importExport.php CSVImportExportPlugin users admin /path/to/folder_with_csv_user_files --sendWelcomeEmail
+php tools/importExport.php CSVImportPlugin users admin /path/to/folder_with_csv_user_files --sendWelcomeEmail
 ```
 
 ## Importing Monographs
@@ -25,7 +25,7 @@ php tools/importExport.php CSVImportExportPlugin users admin /path/to/folder_wit
 To import monographs from a CSV file, use the following command:
 
 ```bash
-php tools/importExport.php CSVImportExportPlugin monographs [username] [pathToFolderWithCsvFiles]
+php tools/importExport.php CSVImportPlugin monographs [username] [pathToFolderWithCsvFiles]
 ```
 
 Parameters:
@@ -34,7 +34,7 @@ Parameters:
 
 Example:
 ```bash
-php tools/importExport.php CSVImportExportPlugin monographs admin /path/to/folder_with_csv_monograph_files
+php tools/importExport.php CSVImportPlugin monographs admin /path/to/folder_with_csv_monograph_files
 ```
 
 > **Important Notes**
