@@ -52,8 +52,8 @@ msgstr "Could not create the file \"{$filename}\"."
 msgid "plugins.importexport.csv.invalidArticleFile"
 msgstr "Invalid monograph file for this submission."
 
-msgid "plugins.importexpot.csv.fileProcessFinished"
-msgstr "Process for file \"{$filename}\" finished. {$processedRows} rows processed. {$failedRows} rows with error."
+msgid "plugins.importexport.csv.fileProcessFinished"
+msgstr "Process for file \"{$filename}\" finished. {$createdRows} created, {$updatedRows} updated, {$failedRows} failed."
 
 msgid "plugins.importexport.csv.invalidBookCoverImage"
 msgstr "The cover image has an invalid format for this row."
