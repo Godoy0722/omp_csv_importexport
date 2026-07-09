@@ -28,6 +28,10 @@ class SectionsProcessor extends SharedSectionsProcessor
      */
     public static function newSectionToPublication(object $data, int $contextId, Publication $publication): void
     {
+        if (empty($data->sectionTitle)) {
+            return;
+        }
+
         $section = Repo::section()->newDataObject();
 
         $section->setContextId($contextId);
@@ -61,6 +65,10 @@ class SectionsProcessor extends SharedSectionsProcessor
                     return;
                 }
             }
+        }
+
+        if (empty($data->seriesTitle) && empty($data->seriesPath)) {
+            return;
         }
 
         // Try lookup by seriesPath first (OMP-specific)
