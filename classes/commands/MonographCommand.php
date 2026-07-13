@@ -79,12 +79,16 @@ class MonographCommand
 
     private bool $dryMode;
 
-    public function __construct(string $sourceDir, User $user, bool $dryMode = false)
+    /** @var string|null Current press path from GUI context. When set, rows with a different pressPath are rejected. */
+    private ?string $currentPressPath;
+
+    public function __construct(string $sourceDir, User $user, bool $dryMode = false, ?string $currentPressPath = null)
     {
         $this->expectedRowSize = count(RequiredMonographHeaders::$monographHeaders);
         $this->sourceDir = $sourceDir;
         $this->user = $user;
         $this->dryMode = $dryMode;
+        $this->currentPressPath = $currentPressPath;
         $this->processedMonographs = [];
         $this->failedIdentifiers = [];
     }
@@ -194,6 +198,17 @@ class MonographCommand
                     $press = CachedEntities::getCachedPress($data->pressPath);
 
                     InvalidRowValidations::validateContextIsValid($press, $data->pressPath, 'Press');
+
+                    if ($this->currentPressPath !== null && $data->pressPath !== $this->currentPressPath) {
+                        throw new RowValidationException(
+                            __('plugins.importexport.csv.contextPathMismatch', [
+                                'contextType' => 'press',
+                                'csvContextPath' => $data->pressPath,
+                                'currentContextPath' => $this->currentPressPath,
+                            ])
+                        );
+                    }
+
                     InvalidRowValidations::validateContextLocale($press, $data->locale, 'Press');
 
                     $genreName = 'MANUSCRIPT';

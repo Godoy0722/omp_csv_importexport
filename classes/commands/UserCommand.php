@@ -49,13 +49,17 @@ class UserCommand
 
     private bool $dryMode;
 
-    public function __construct(string $sourceDir, User $user, bool $sendWelcomeEmail, bool $dryMode = false)
+    /** @var string|null Current press path from GUI context. When set, rows with a different pressPath are rejected. */
+    private ?string $currentPressPath;
+
+    public function __construct(string $sourceDir, User $user, bool $sendWelcomeEmail, bool $dryMode = false, ?string $currentPressPath = null)
     {
         $this->expectedRowSize = count(RequiredUserHeaders::$userHeaders);
         $this->sourceDir = $sourceDir;
         $this->senderEmailUser = $user;
         $this->sendWelcomeEmail = $sendWelcomeEmail;
         $this->dryMode = $dryMode;
+        $this->currentPressPath = $currentPressPath;
     }
 
     public function run(): array
@@ -122,6 +126,17 @@ class UserCommand
                     $press = CachedEntities::getCachedPress($data->pressPath);
 
                     InvalidRowValidations::validateContextIsValid($press, $data->pressPath, 'Press');
+
+                    if ($this->currentPressPath !== null && $data->pressPath !== $this->currentPressPath) {
+                        throw new RowValidationException(
+                            __('plugins.importexport.csv.contextPathMismatch', [
+                                'contextType' => 'press',
+                                'csvContextPath' => $data->pressPath,
+                                'currentContextPath' => $this->currentPressPath,
+                            ])
+                        );
+                    }
+
                     $existingUser = CachedEntities::getCachedUserByEmail($data->email);
                     $isNewUser = is_null($existingUser);
 

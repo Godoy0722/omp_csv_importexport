@@ -260,10 +260,13 @@ class CSVImportPlugin extends ImportExportPlugin
                 copy($filePath, $sourceDir . '/' . $temporaryFile->getOriginalFileName());
             }
 
+            $context = $request->getContext();
+            $currentPressPath = $context?->getPath();
+
             ob_start();
             $result = match ($importType) {
-                'monographs' => (new MonographCommand($sourceDir, $user, $dryMode))->run(),
-                'users' => (new UserCommand($sourceDir, $user, $sendWelcomeEmail, $dryMode))->run(),
+                'monographs' => (new MonographCommand($sourceDir, $user, $dryMode, $currentPressPath))->run(),
+                'users' => (new UserCommand($sourceDir, $user, $sendWelcomeEmail, $dryMode, $currentPressPath))->run(),
             };
             $capturedOutput = ob_get_clean();
 

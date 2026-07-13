@@ -1,5 +1,5 @@
 pressPath,firstname,lastname,email,affiliation,country,username,tempPassword,roles,reviewInterests,orcid
 liv,Homer,Simpson,homer@example.com,UBC,CA,hsimpson,temppassword123,"Reader;Author","interest one; interest two",https://orcid.org/0000-0002-1825-0097
-liv,Bart,Simpson,bart@example.com,UBC,CA,bsimpson,temppassword123,"Reader","interest two; interest three",0000-0001-5109-3700
-liv,Lisa,Simpson,lisa@example.com,UBC,CA,lsimpson,temppassword123,"Author","science; research",0000000256781235
-liv,Marge,Simpson,marge@example.com,UBC,CA,msimpson,temppassword123,"Reader",,
+liv,Bart2,Simpson,bart@example.com,UBC,CA,bsimpson,temppassword123,"Reader","interest two; interest three",0000-0001-5109-3700
+liv,Lisa2,Simpson,lisa@example.com,UBC,CA,lsimpson,temppassword123,"Author","science; research",0000000256781235
+liv,Marge2,Simpson,marge@example.com,UBC,CA,msimpson,temppassword123,"Reader",,
