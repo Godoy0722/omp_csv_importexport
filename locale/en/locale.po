@@ -150,3 +150,12 @@ msgstr "The counters below show the totals for this run, followed by a per-file 
 
 msgid "plugins.importexport.csv.results.invalidFilesHint"
 msgstr "For every CSV that had failed rows, a downloadable copy named <b>invalid_&lt;your-file&gt;.csv</b> is generated containing only those failed rows. Click the file name shown below each error table to download it, fix the rows, and import again."
+
+msgid "plugins.importexport.csv.invalidDateFormat"
+msgstr "Invalid date format for {$fieldName}. Expected format: YYYY-MM-DD (e.g., 2024-01-15)."
+
+msgid "plugins.importexport.csv.submissionFileProcessFinished"
+msgstr "Process for file \"{$filename}\" finished. {$processedRows} processed, {$failedRows} failed."
+
+msgid "plugins.importexport.csv.rowImportFailed"
+msgstr "Unexpected error while importing this row: {$message}"

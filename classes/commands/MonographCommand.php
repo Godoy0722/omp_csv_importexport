@@ -211,6 +211,8 @@ class MonographCommand
 
                     InvalidRowValidations::validateContextLocale($press, $data->locale, 'Press');
 
+                    InvalidRowValidations::validateDateFormat($data->datePublished, 'datePublished');
+
                     $genreName = 'MANUSCRIPT';
                     $genreId = CachedEntities::getCachedGenreId($genreName, $press->getId());
 
@@ -484,7 +486,7 @@ class MonographCommand
                 $this->failedIdentifiers = [];
             }
 
-            echo __('plugins.importexpot.csv.fileProcessFinished', [
+            echo __('plugins.importexport.csv.submissionFileProcessFinished', [
                 'filename' => $fileInfo->getFilename(),
                 'processedRows' => $this->processedRows,
                 'failedRows' => $this->failedRows,
