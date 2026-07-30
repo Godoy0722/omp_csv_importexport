@@ -154,6 +154,9 @@ msgstr "For every CSV that had failed rows, a downloadable copy named <b>invalid
 msgid "plugins.importexport.csv.invalidDateFormat"
 msgstr "Invalid date format for {$fieldName}. Expected format: YYYY-MM-DD (e.g., 2024-01-15)."
 
+msgid "plugins.importexport.csv.duplicateDoi"
+msgstr "The DOI \"{$doi}\" already exists in this press."
+
 msgid "plugins.importexport.csv.submissionFileProcessFinished"
 msgstr "Process for file \"{$filename}\" finished. {$processedRows} processed, {$failedRows} failed."
 

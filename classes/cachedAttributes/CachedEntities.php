@@ -27,12 +27,45 @@ class CachedEntities extends SharedCachedEntities
     /** @var array<string,Press|null> */
     static array $presses = [];
 
+    /** @var array<string,bool> Press-scoped cache of existing DOIs from the database */
+    static array $existingDoisByPress = [];
+
     /** Resets all cached entities. Used after dry-mode rollback to clear stale IDs. */
     public static function reset(): void
     {
         parent::reset();
 
         static::$presses = [];
+        static::$existingDoisByPress = [];
+    }
+
+    /**
+     * Retrieves all existing DOIs for a given press from the database.
+     * Results are cached statically per press ID.
+     *
+     * @return array<string,bool> Associative map keyed by normalized DOI
+     */
+    public static function getExistingDois(int $pressId): array
+    {
+        if (isset(static::$existingDoisByPress[$pressId])) {
+            return static::$existingDoisByPress[$pressId];
+        }
+
+        $dois = \Illuminate\Support\Facades\DB::table('dois')
+            ->where('context_id', $pressId)
+            ->whereNotNull('doi')
+            ->distinct()
+            ->pluck('doi');
+
+        $doiMap = [];
+        foreach ($dois as $rawDoi) {
+            $normalized = \APP\plugins\importexport\csv\shared\validations\InvalidRowValidations::normalizeVorDoi($rawDoi);
+            if ($normalized !== null) {
+                $doiMap[$normalized] = true;
+            }
+        }
+
+        return static::$existingDoisByPress[$pressId] = $doiMap;
     }
 
     /** Retrieves a cached Press by its path. Returns null if not found. */

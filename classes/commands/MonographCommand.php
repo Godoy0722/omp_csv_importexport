@@ -82,6 +82,9 @@ class MonographCommand
     /** @var string|null Current press path from GUI context. When set, rows with a different pressPath are rejected. */
     private ?string $currentPressPath;
 
+    /** @var array<string,bool> DOIs imported during the current run for deduplication */
+    private array $importedDois;
+
     public function __construct(string $sourceDir, User $user, bool $dryMode = false, ?string $currentPressPath = null)
     {
         $this->expectedRowSize = count(RequiredMonographHeaders::$monographHeaders);
@@ -91,6 +94,7 @@ class MonographCommand
         $this->currentPressPath = $currentPressPath;
         $this->processedMonographs = [];
         $this->failedIdentifiers = [];
+        $this->importedDois = [];
     }
 
     public function run(): array
@@ -212,6 +216,11 @@ class MonographCommand
                     InvalidRowValidations::validateContextLocale($press, $data->locale, 'Press');
 
                     InvalidRowValidations::validateDateFormat($data->datePublished, 'datePublished');
+
+                    if (!empty($data->doi)) {
+                        $existingDois = CachedEntities::getExistingDois($press->getId());
+                        InvalidRowValidations::validateDoiNotDuplicate($data->doi, $existingDois, $this->importedDois);
+                    }
 
                     $genreName = 'MANUSCRIPT';
                     $genreId = CachedEntities::getCachedGenreId($genreName, $press->getId());
@@ -394,6 +403,11 @@ class MonographCommand
 
                     if (!$this->dryMode) {
                         DB::commit();
+
+                        $normalizedDoi = InvalidRowValidations::normalizeVorDoi($data->doi ?? null);
+                        if ($normalizedDoi !== null) {
+                            $this->importedDois[$normalizedDoi] = true;
+                        }
                     }
                 } catch (RowValidationException $e) {
                     if (!$this->dryMode) {
