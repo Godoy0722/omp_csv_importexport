@@ -35,7 +35,6 @@ class RequiredUserHeaders
     static $userRequiredHeaders = [
         'pressPath',
         'firstname',
-        'lastname',
         'email',
         'roles',
     ];
