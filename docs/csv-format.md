@@ -70,6 +70,7 @@ Make sure to follow this CSV structure with all headers present, including the n
 | monographAbstract | No | Monograph abstract | This monograph examines... | Optional |
 | authors | Yes | Author information | See [Authors Format](#authors-format) | Required for version 1, optional for versions > 1 |
 | filename | No | PDF filename to attach | submission.pdf | Must be in same directory as CSV |
+| htmlGalley | No | Semicolon-separated HTML galley with dependent files | article.html;style.css;chart.svg | First file must be .html/.htm. See [HTML Galleys](#html-galleys) |
 | keywords | No | Semicolon-separated keywords | science;research | Optional |
 | subjects | No | Semicolon-separated subjects | Biology;Ecology | Optional |
 | coverage | No | Coverage information | Global study | Optional |
@@ -165,5 +166,41 @@ import_directory/
 ```
 
 You can also upload a ZIP archive through the web interface containing the CSV and all referenced files.
+
+### HTML Galleys
+
+The `htmlGalley` column allows importing an HTML file as a galley attached to the monograph's Publication Format, optionally with dependent files (CSS, SVG, JS, images, etc.).
+
+**Format:**
+
+```
+htmlFile.html;dependentFile1.css;dependentFile2.svg
+```
+
+- Values are **semicolon-separated** (`;`)
+- The **first file** must be the HTML galley (`.html` or `.htm` extension)
+- All remaining files are treated as **dependent files**
+- All files must be placed in the same directory as the CSV file, or in a subfolder — use a relative path from the CSV directory (e.g., `galleys/article.html;galleys/styles.css`)
+
+**Example — HTML galley with stylesheet and chart:**
+
+```
+htmlGalley: article.html;styles.css;chart.svg
+```
+
+**Combining with a PDF galley:**
+
+You can import both a PDF galley and an HTML galley in the same row:
+
+```
+filename: submission.pdf
+htmlGalley: article.html;styles.css
+```
+
+> The PDF galley is uploaded as a proof file on the Publication Format. The HTML galley is uploaded as a dependent file on the same Publication Format.
+
+**Important:** When the HTML galley is downloaded, the browser receives the raw HTML file. Relative paths to dependent files inside the HTML (e.g., `<link href="styles.css">`) are not automatically resolved — the platform currently has no built-in URL routing to serve them alongside the HTML in the reader view.
+
+> **Dependent file types:** Any file type can be uploaded as a dependent file — CSS, SVG, PNG, JPEG, JS, fonts, etc. There are no extension restrictions on dependent files, only the first file in the list must be `.html` or `.htm`.
 
 [← Prev: CLI Usage](cli-usage.md) | [README](../README.md) | [Next: Multi-Locale Support →](multi-locale.md)

@@ -25,4 +25,8 @@ When a `year` is provided, a Publication Date entry is created with ONIX date fo
 
 If a `doi` is provided, it is assigned to the Publication Format.
 
+### HTML Galleys
+
+When an `htmlGalley` value is provided in the CSV, the HTML file and its dependent files are uploaded as dependent files on the same Publication Format. See [HTML Galleys](csv-format.md#html-galleys) in the CSV Format documentation for usage details.
+
 [← Prev: Monograph Versions](monograph-versions.md) | [README](../README.md) | [Next: Dry Mode →](dry-mode.md)
