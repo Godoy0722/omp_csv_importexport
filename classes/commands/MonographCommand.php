@@ -32,6 +32,7 @@ use APP\plugins\importexport\csv\shared\handlers\DryModeReporter;
 use APP\plugins\importexport\csv\shared\processors\AuthorsProcessor;
 use APP\plugins\importexport\csv\shared\processors\CategoriesProcessor;
 use APP\plugins\importexport\csv\shared\processors\FundersProcessor;
+use APP\plugins\importexport\csv\shared\processors\HtmlGalleyProcessor;
 use APP\plugins\importexport\csv\shared\processors\KeywordsProcessor;
 use APP\plugins\importexport\csv\shared\processors\SubjectsProcessor;
 use APP\plugins\importexport\csv\shared\validations\InvalidRowValidations;
@@ -236,6 +237,10 @@ class MonographCommand
                         InvalidRowValidations::validateFundersCrossrefRegistry($data->funders, $press->getId());
                     }
 
+                    if ($data->htmlGalley) {
+                        InvalidRowValidations::validateHtmlGalleys($data->htmlGalley, $this->sourceDir);
+                    }
+
                     $this->initializeStaticVariables();
 
                     $coverImageUploadName = null;
@@ -349,6 +354,60 @@ class MonographCommand
                                 $data->locale,
                                 $fileUploadUser
                             );
+                        }
+
+                        // Process HTML galley if provided
+                        if (!$this->dryMode && !empty($data->htmlGalley)) {
+                            $htmlGalleyFiles = array_map('trim', explode(';', $data->htmlGalley));
+                            $htmlGalleyFiles = array_filter($htmlGalleyFiles, fn(string $f) => $f !== '');
+                            $htmlFile = $htmlGalleyFiles[0];
+                            $dependentFiles = array_slice($htmlGalleyFiles, 1);
+
+                            $htmlFilePath = "{$this->sourceDir}/{$htmlFile}";
+                            $sanitizedHtml = HtmlGalleyProcessor::sanitizeHtmlFile($htmlFilePath);
+
+                            $tempFile = tempnam(sys_get_temp_dir(), 'omp_html_galley_');
+                            file_put_contents($tempFile, $sanitizedHtml);
+
+                            try {
+                                $submissionDir = sprintf($this->format, $press->getId(), $submission->getId());
+                                $destPath = $submissionDir . '/' . uniqid() . '.html';
+                                $htmlFileId = $this->fileService->add($tempFile, $destPath);
+
+                                $htmlPublicationFormatId = PublicationFormatProcessor::createPublicationFormat(
+                                    $publication->getId(),
+                                    null
+                                );
+
+                                PublicationFormatProcessor::createSubmissionFile(
+                                    $submission->getId(),
+                                    $htmlPublicationFormatId,
+                                    $htmlFileId,
+                                    $genreId,
+                                    $data->locale,
+                                    $fileUploadUser,
+                                    'text/html',
+                                    pathinfo($htmlFile, PATHINFO_BASENAME)
+                                );
+
+                                if (!empty($dependentFiles)) {
+                                    HtmlGalleyProcessor::createDependentFiles(
+                                        $dependentFiles,
+                                        $htmlFileId,
+                                        $this->sourceDir,
+                                        $submissionDir,
+                                        $data,
+                                        $submission->getId(),
+                                        $genreId,
+                                        $fileUploadUser,
+                                        $this->fileService
+                                    );
+                                }
+                            } finally {
+                                if (file_exists($tempFile)) {
+                                    unlink($tempFile);
+                                }
+                            }
                         }
                     }
 

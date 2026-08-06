@@ -79,7 +79,9 @@ class PublicationFormatProcessor
         int $fileId,
         int $genreId,
         string $locale,
-        User $user
+        User $user,
+        ?string $mimeType = null,
+        ?string $fileName = null
     ): void {
         $submissionFile = Repo::submissionFile()->newDataObject();
         $submissionFile->setData('submissionId', $submissionId);
@@ -89,8 +91,12 @@ class PublicationFormatProcessor
         $submissionFile->setData('fileStage', SubmissionFile::SUBMISSION_FILE_PROOF);
         $submissionFile->setData('assocType', Application::ASSOC_TYPE_REPRESENTATION);
         $submissionFile->setData('assocId', $publicationFormatId);
-        $submissionFile->setData('mimetype', 'application/pdf');
+        $submissionFile->setData('mimetype', $mimeType ?? 'application/pdf');
         $submissionFile->setData('fileId', $fileId);
+
+        if ($fileName !== null) {
+            $submissionFile->setData('name', $fileName, $locale);
+        }
 
         // Assume open access, no price, viewable
         $submissionFile->setDirectSalesPrice(0);

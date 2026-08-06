@@ -45,6 +45,7 @@ class RequiredMonographHeaders
         'copyrightHolder',
         'licenseUrl',
         'references',
+        'htmlGalley',
         'username',
         'funders',
         'supportingAgencies',
