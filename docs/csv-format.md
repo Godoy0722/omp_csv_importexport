@@ -90,6 +90,11 @@ Make sure to follow this CSV structure with all headers present, including the n
 | username | No | Username to assign as file uploader | admin | Falls back to CLI user if not found |
 | funders | No | Funder information | See [Funders Format](#funders-format) | Requires Funding plugin |
 | supportingAgencies | No | Semicolon-separated agencies | NSF;DOE | Optional |
+| chapterTitle | No | Chapter title | Introduction | See [Chapters](#chapters) |
+| chapterFiles | No | Chapter files, comma-separated per chapter | chapter1a.pdf,chapter1b.pdf;chapter2a.pdf | Requires chapterTitle. See [Chapters](#chapters) |
+| chapterSubtitle | No | Semicolon-separated chapter subtitles | Subtitle 1;;Subtitle 3 | Requires chapterTitle. See [Chapters](#chapters) |
+| chapterAbstract | No | Semicolon-separated chapter abstracts | Abstract 1;;Abstract 3 | Requires chapterTitle. See [Chapters](#chapters) |
+| chapterContributors | No | Chapter-grouped contributor entries | John,Doe,john@example.com,,,&#124;Jane,Smith,,, | Requires chapterTitle. See [Chapters](#chapters) |
 
 > **Authors Format**
 > The `authors` field in the monographs CSV must contain author information in the following format:
@@ -202,5 +207,43 @@ htmlGalley: article.html;styles.css
 **Important:** When the HTML galley is downloaded, the browser receives the raw HTML file. Relative paths to dependent files inside the HTML (e.g., `<link href="styles.css">`) are not automatically resolved — the platform currently has no built-in URL routing to serve them alongside the HTML in the reader view.
 
 > **Dependent file types:** Any file type can be uploaded as a dependent file — CSS, SVG, PNG, JPEG, JS, fonts, etc. There are no extension restrictions on dependent files, only the first file in the list must be `.html` or `.htm`.
+
+### Chapters
+
+The `chapterTitle`, `chapterSubtitle`, `chapterAbstract`, `chapterFiles`, and `chapterContributors` columns allow importing chapters for a monograph. All of them are optional, but every chapter field other than `chapterTitle` requires a `chapterTitle` on the same position.
+
+**One row, several chapters:**
+
+Each chapter column is a semicolon-separated list aligned by position. Empty positions are kept:
+
+```
+chapterTitle:    Title 1;Title 2;Title 3
+chapterSubtitle: Subtitle 1;;Subtitle 3
+chapterAbstract: Abstract 1;;Abstract 3
+chapterFiles:    ;chapter2a.pdf,chapter2b.pdf;
+```
+
+defines three chapters — only chapters 1 and 3 get a subtitle and abstract, only chapter 2 gets files. Any list with more positions than `chapterTitle` fails the row.
+
+- In `chapterFiles`, `;` separates chapters (positions) and `,` separates the files of one chapter.
+- `chapterTitle` and `chapterSubtitle`/`chapterAbstract` are **localized** — on multi-locale rows they are stored in the row's `locale`.
+- Each `chapterFiles` file is added to the submission as a proof file and associated with its chapter.
+- A chapter with a title but no files/subtitle/abstract is allowed.
+
+**Reusing existing chapters:**
+
+Before creating a chapter, the importer looks for an existing chapter of the same publication with the same title in the row's locale. When found, that chapter is reused (and the row's files are attached to it) instead of creating a duplicate. Matching is per locale only — a translated title on a multi-locale row that does not match an existing title creates a new chapter.
+
+**Chapter contributors:**
+
+```
+chapterContributors: author1_for_chapter1;author2_for_chapter1|author1_for_chapter2
+```
+
+- `|` separates chapters — groups align with the `chapterTitle` positions (use `g1||g3` to skip a chapter).
+- `;` separates contributor entries inside a group.
+- Each entry has the same comma-separated subfields as the `authors` column: `GivenName,FamilyName,Email,ORCiD,Affiliation,Biography`.
+
+Every contributor entry must be an **exact copy** of an entry in the same row's `authors` column; otherwise the row fails with an error naming the contributor. The matched authors are linked to their chapter as its contributors.
 
 [← Prev: CLI Usage](cli-usage.md) | [README](../README.md) | [Next: Multi-Locale Support →](multi-locale.md)

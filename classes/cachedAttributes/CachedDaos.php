@@ -16,6 +16,7 @@
 
 namespace APP\plugins\importexport\csv\classes\cachedAttributes;
 
+use APP\monograph\ChapterDAO;
 use APP\press\PressDAO;
 use APP\publicationFormat\PublicationFormatDAO;
 use APP\publicationFormat\PublicationDateDAO;
@@ -43,5 +44,11 @@ class CachedDaos
     public static function getPublicationDateDao(): PublicationDateDAO
     {
         return self::$cachedDaos['PublicationDateDAO'] ??= DAORegistry::getDAO('PublicationDateDAO');
+    }
+
+    /** Retrieves the cached ChapterDAO instance. */
+    public static function getChapterDao(): ChapterDAO
+    {
+        return self::$cachedDaos['ChapterDAO'] ??= DAORegistry::getDAO('ChapterDAO');
     }
 }

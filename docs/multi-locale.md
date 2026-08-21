@@ -46,6 +46,9 @@ The system will:
    - `subjects`
    - `categories` (category titles)
    - `supportingAgencies`
+   - `chapterTitle`
+   - `chapterSubtitle`
+   - `chapterAbstract`
    - Author names (`givenName`, `familyName`)
    - Author affiliations
 

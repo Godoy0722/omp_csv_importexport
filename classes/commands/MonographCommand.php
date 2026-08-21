@@ -21,10 +21,12 @@ use APP\facades\Repo;
 use APP\file\PublicFileManager;
 use APP\plugins\importexport\csv\classes\cachedAttributes\CachedDaos;
 use APP\plugins\importexport\csv\classes\cachedAttributes\CachedEntities;
+use APP\plugins\importexport\csv\classes\processors\ChaptersProcessor;
 use APP\plugins\importexport\csv\classes\processors\PublicationFormatProcessor;
 use APP\plugins\importexport\csv\classes\processors\PublicationProcessor;
 use APP\plugins\importexport\csv\classes\processors\SectionsProcessor;
 use APP\plugins\importexport\csv\classes\processors\SubmissionProcessor;
+use APP\plugins\importexport\csv\classes\validations\ChapterValidations;
 use APP\plugins\importexport\csv\classes\validations\RequiredMonographHeaders;
 use APP\plugins\importexport\csv\shared\exceptions\RowValidationException;
 use APP\plugins\importexport\csv\shared\handlers\CSVFileHandler;
@@ -237,6 +239,8 @@ class MonographCommand
                         InvalidRowValidations::validateFundersCrossrefRegistry($data->funders, $press->getId());
                     }
 
+                    ChapterValidations::validateChapterFields($data, $this->sourceDir);
+
                     if ($data->htmlGalley) {
                         InvalidRowValidations::validateHtmlGalleys($data->htmlGalley, $this->sourceDir);
                     }
@@ -442,6 +446,23 @@ class MonographCommand
                     }
 
                     SectionsProcessor::process($data, $press->getId(), $publication, $basePublication);
+
+                    ChaptersProcessor::process(
+                        $data,
+                        $publication,
+                        $this->sourceDir,
+                        $this->dryMode,
+                        [
+                            'fileManager' => $this->fileManager,
+                            'fileService' => $this->fileService,
+                            'submissionId' => $submission->getId(),
+                            'pressId' => $press->getId(),
+                            'genreId' => $genreId,
+                            'user' => $fileUploadUser,
+                            'locale' => $data->locale,
+                            'format' => $this->format,
+                        ]
+                    );
 
                     if ($data->categories || $basePublication) {
                         if ($isMultiLocaleImport) {

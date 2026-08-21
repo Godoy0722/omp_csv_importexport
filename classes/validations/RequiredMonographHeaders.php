@@ -49,6 +49,11 @@ class RequiredMonographHeaders
         'username',
         'funders',
         'supportingAgencies',
+        'chapterTitle',
+        'chapterFiles',
+        'chapterSubtitle',
+        'chapterAbstract',
+        'chapterContributors',
     ];
 
     static $monographRequiredHeaders = [

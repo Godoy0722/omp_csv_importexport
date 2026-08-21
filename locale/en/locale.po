@@ -162,3 +162,21 @@ msgstr "Process for file \"{$filename}\" finished. {$processedRows} processed, {
 
 msgid "plugins.importexport.csv.rowImportFailed"
 msgstr "Unexpected error while importing this row: {$message}"
+
+msgid "plugins.importexport.csv.chapterFilesWithoutChapterTitle"
+msgstr "The chapterTitle field is required when chapterFiles is provided."
+
+msgid "plugins.importexport.csv.invalidChapterFile"
+msgstr "Missing chapter file \"{$filename}\" for this submission."
+
+msgid "plugins.importexport.csv.chapterSubtitleWithoutChapterTitle"
+msgstr "The chapterSubtitle field requires a chapterTitle on the same position."
+
+msgid "plugins.importexport.csv.chapterAbstractWithoutChapterTitle"
+msgstr "The chapterAbstract field requires a chapterTitle on the same position."
+
+msgid "plugins.importexport.csv.chapterContributorsWithoutChapterTitle"
+msgstr "The chapterContributors field requires a chapterTitle for each chapter."
+
+msgid "plugins.importexport.csv.invalidChapterContributor"
+msgstr "The chapter contributor \"{$contributor}\" does not match any author in the authors column."
