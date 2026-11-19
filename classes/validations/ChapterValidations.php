@@ -16,7 +16,9 @@
 
 namespace APP\plugins\importexport\csv\classes\validations;
 
+use APP\plugins\importexport\csv\classes\processors\ChaptersProcessor;
 use APP\plugins\importexport\csv\shared\exceptions\RowValidationException;
+use APP\plugins\importexport\csv\shared\processors\AuthorsProcessor;
 use APP\plugins\importexport\csv\shared\validations\InvalidRowValidations;
 
 class ChapterValidations
@@ -24,8 +26,8 @@ class ChapterValidations
     /**
      * Validates monograph chapter fields.
      *
-     * All chapter columns are positional lists split on `;` (contributors additionally
-     * on `|` per chapter). Empty positions are kept — "Subtitle 1;;Subtitle 3" puts
+     * All chapter columns are positional lists split on `;` (contributors are first
+     * split on `#` per chapter, outside quotes). Empty positions are kept — "Subtitle 1;;Subtitle 3" puts
      * values on chapters 1 and 3 of "Title 1;Title 2;Title 3". Every chapter field
      * other than chapterTitle requires a non-empty chapterTitle on the same position,
      * and no list may have more positions than the chapterTitle list.
@@ -36,11 +38,8 @@ class ChapterValidations
      */
     public static function validateChapterFields(object $data, string $sourceDir): void
     {
-        $titles = array_map('trim', explode(';', (string) ($data->chapterTitle ?? '')));
-        $subtitles = array_map('trim', explode(';', (string) ($data->chapterSubtitle ?? '')));
-        $abstracts = array_map('trim', explode(';', (string) ($data->chapterAbstract ?? '')));
-        $files = array_map('trim', explode(';', (string) ($data->chapterFiles ?? '')));
-        $contributorGroups = array_map('trim', explode('|', (string) ($data->chapterContributors ?? '')));
+        // Same split as the import itself, so validation and processing never disagree.
+        [$titles, $subtitles, $abstracts, $files, $contributorGroups] = ChaptersProcessor::parseChapterData($data);
 
         $allEmpty = !array_filter($titles) && !array_filter($subtitles) && !array_filter($abstracts)
             && !array_filter($files) && !array_filter($contributorGroups);
@@ -87,16 +86,11 @@ class ChapterValidations
         }
 
         $authorEntries = array_filter(
-            array_map('trim', explode(';', (string) ($data->authors ?? ''))),
+            AuthorsProcessor::splitAuthorEntries((string) ($data->authors ?? '')),
             fn(string $entry) => $entry !== ''
         );
 
-        foreach ($contributorGroups as $index => $group) {
-            $groupEntries = array_filter(
-                array_map('trim', explode(';', $group)),
-                fn(string $entry) => $entry !== ''
-            );
-
+        foreach ($contributorGroups as $index => $groupEntries) {
             if (empty($groupEntries)) {
                 continue;
             }

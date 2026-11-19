@@ -1,0 +1,105 @@
+<?php
+
+/**
+ * @file plugins/importexport/csv/tests/Unit/Validations/RequiredMonographHeadersTest.php
+ *
+ * Copyright (c) 2026 Simon Fraser University
+ * Copyright (c) 2026 John Willinsky
+ * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
+ *
+ * @class RequiredMonographHeadersTest
+ *
+ * @brief Tests for the OMP monograph column layout and its required columns
+ */
+
+namespace APP\plugins\importexport\csv\tests\Unit\Validations;
+
+use APP\plugins\importexport\csv\classes\validations\RequiredMonographHeaders;
+use APP\plugins\importexport\csv\shared\exceptions\RowValidationException;
+use APP\plugins\importexport\csv\shared\tests\BaseTestCase;
+use APP\plugins\importexport\csv\shared\validations\InvalidRowValidations;
+use PHPUnit\Framework\Attributes\CoversClass;
+
+#[CoversClass(RequiredMonographHeaders::class)]
+class RequiredMonographHeadersTest extends BaseTestCase
+{
+    /**
+     * The layout has 38 columns: monographPrefix is gone and the four reserved columns are present.
+     */
+    public function testLayoutHasThirtyEightColumnsWithReservedColumns(): void
+    {
+        $headers = RequiredMonographHeaders::$monographHeaders;
+
+        $this->assertCount(38, $headers);
+        $this->assertNotContains('monographPrefix', $headers);
+        foreach (['submissionFiles', 'fileLocale', 'submissionStatus', 'htmlGalleyLocale'] as $reserved) {
+            $this->assertContains($reserved, $headers);
+        }
+        $this->assertSame(count($headers), count(array_unique($headers)));
+    }
+
+    /**
+     * Failed rows read versionIdentifier from $fields[2], so it must stay at index 2.
+     */
+    public function testVersionIdentifierStaysAtIndexTwo(): void
+    {
+        $this->assertSame('versionIdentifier', RequiredMonographHeaders::$monographHeaders[2]);
+    }
+
+    /**
+     * The reserved columns sit next to the column they extend.
+     */
+    public function testReservedColumnsArePlacedNextToTheirColumns(): void
+    {
+        $headers = RequiredMonographHeaders::$monographHeaders;
+        $position = array_flip($headers);
+
+        $this->assertSame($position['filename'] - 1, $position['submissionFiles']);
+        $this->assertSame($position['filename'] + 1, $position['fileLocale']);
+        $this->assertSame($position['datePublished'] - 1, $position['submissionStatus']);
+        $this->assertSame($position['htmlGalley'] + 1, $position['htmlGalleyLocale']);
+    }
+
+    /**
+     * Only the five required columns are reported, in header order; reserved columns are never required.
+     */
+    public function testMissingRequiredFieldsListsOnlyTheRequiredColumns(): void
+    {
+        $row = (object) array_fill_keys(RequiredMonographHeaders::$monographHeaders, '');
+
+        $this->assertSame(
+            ['pressPath', 'locale', 'monographTitle', 'authors', 'datePublished'],
+            RequiredMonographHeaders::missingRequiredFields($row)
+        );
+    }
+
+    /**
+     * A filled row has no missing fields, even with every reserved column empty.
+     */
+    public function testMissingRequiredFieldsIsEmptyForACompleteRow(): void
+    {
+        $row = (object) array_fill_keys(RequiredMonographHeaders::$monographHeaders, '');
+        $row->pressPath = 'press';
+        $row->locale = 'en';
+        $row->monographTitle = 'Title';
+        $row->authors = 'Ana,Silva,ana@example.com,,,';
+        $row->datePublished = '2024-01-15';
+
+        $this->assertSame([], RequiredMonographHeaders::missingRequiredFields($row));
+        $this->assertTrue(RequiredMonographHeaders::validateRowHasAllRequiredFields($row));
+    }
+
+    /**
+     * A row in the old 35-column layout is rejected by the column count.
+     */
+    public function testOldThirtyFiveColumnRowIsRejected(): void
+    {
+        $this->expectException(RowValidationException::class);
+        $this->expectExceptionMessage('rowDoesntContainAllFields');
+
+        InvalidRowValidations::validateRowContainAllFields(
+            array_fill(0, 35, ''),
+            count(RequiredMonographHeaders::$monographHeaders)
+        );
+    }
+}

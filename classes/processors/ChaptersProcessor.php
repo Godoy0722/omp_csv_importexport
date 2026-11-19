@@ -38,7 +38,7 @@ class ChaptersProcessor
      * All chapter columns are positional lists: one row can define several
      * chapters, and chapterSubtitle/chapterAbstract/chapterFiles entries land
      * on the chapter at the same position. chapterContributors groups chapters
-     * on `|`. Every field other than chapterTitle requires a chapterTitle on
+     * on `#`. Every field other than chapterTitle requires a chapterTitle on
      * the same position (enforced by validateChapterFields).
      *
      * @param array $fileContext File handling dependencies:
@@ -228,8 +228,12 @@ class ChaptersProcessor
 
     /**
      * Splits the five chapter columns into positional lists. Empty positions are
-     * kept so entries land on the chapter at the same position. Contributor groups
-     * are split on `|`; empty entries inside a group are dropped.
+     * kept so entries land on the chapter at the same position.
+     *
+     * Contributor groups are split on `#` (one group per chapter), and each group
+     * is split on `;` into author entries, both outside quotes only. `|` is not a
+     * separator here: inside an author entry it divides several affiliations.
+     * Empty entries inside a group are dropped.
      */
     public static function parseChapterData(object $data): array
     {
@@ -238,10 +242,10 @@ class ChaptersProcessor
         $abstracts = array_map('trim', explode(';', (string) ($data->chapterAbstract ?? '')));
         $files = array_map('trim', explode(';', (string) ($data->chapterFiles ?? '')));
 
-        $groups = array_map('trim', explode('|', (string) ($data->chapterContributors ?? '')));
+        $groups = AuthorsProcessor::splitRespectingQuotes((string) ($data->chapterContributors ?? ''), '#');
         $contributorGroups = array_map(
             fn(string $group) => array_values(array_filter(
-                array_map('trim', explode(';', $group)),
+                AuthorsProcessor::splitAuthorEntries($group),
                 fn(string $entry) => $entry !== ''
             )),
             $groups

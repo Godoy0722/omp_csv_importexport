@@ -28,7 +28,6 @@ class PublicationProcessor extends SharedPublicationProcessor
         'title' => 'monographTitle',
         'subtitle' => 'monographSubtitle',
         'abstract' => 'monographAbstract',
-        'prefix' => 'monographPrefix',
         'coverage' => 'coverage',
         'copyrightHolder' => 'copyrightHolder',
     ];
@@ -61,10 +60,6 @@ class PublicationProcessor extends SharedPublicationProcessor
         if (!empty($data->monographAbstract)) {
             $normalizedAbstract = static::normalizeAbstractToHtml($data->monographAbstract);
             $submissionPublication->setData('abstract', $normalizedAbstract, $data->locale);
-        }
-
-        if (!empty($data->monographPrefix)) {
-            $submissionPublication->setData('prefix', $data->monographPrefix, $data->locale);
         }
 
         $oldPublication = Repo::publication()->get($submissionPublication->getId());

@@ -23,12 +23,13 @@ class RequiredMonographHeaders
         'locale',
         'versionIdentifier',
         'version',
-        'monographPrefix',
         'monographTitle',
         'monographSubtitle',
         'monographAbstract',
         'authors',
+        'submissionFiles', // Reserved: counted, not read yet
         'filename',
+        'fileLocale', // Reserved: counted, not read yet
         'keywords',
         'subjects',
         'coverage',
@@ -40,12 +41,14 @@ class RequiredMonographHeaders
         'seriesPath',
         'year',
         'isEditedVolume',
+        'submissionStatus', // Reserved: counted, not read yet
         'datePublished',
         'copyrightYear',
         'copyrightHolder',
         'licenseUrl',
         'references',
         'htmlGalley',
+        'htmlGalleyLocale', // Reserved: counted, not read yet
         'username',
         'funders',
         'supportingAgencies',
