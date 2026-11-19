@@ -27,7 +27,13 @@ class SubmissionProcessor extends SharedSubmissionProcessor
     public static function process(object $data, Publication $publication, Press $press): Submission
     {
         $normalizedAbstract = PublicationProcessor::normalizeAbstractToHtml($data->monographAbstract ?? '');
-        $submission = parent::processCommons($data->locale, $publication, $press, $normalizedAbstract, $data->datePublished);
+        $status = (int) ($data->resolvedStatus ?? Submission::STATUS_PUBLISHED);
+        // A queued or scheduled row has no publication date; its datePublished cell was kept as dateSubmitted.
+        $dateSubmitted = $status === Submission::STATUS_PUBLISHED
+            ? (string) $data->datePublished
+            : (string) ($data->dateSubmitted ?? '');
+
+        $submission = parent::processCommons($data->locale, $publication, $press, $normalizedAbstract, $dateSubmitted, $status);
 
         $submission->setData('workType', $data->isEditedVolume == 1
             ? Submission::WORK_TYPE_EDITED_VOLUME

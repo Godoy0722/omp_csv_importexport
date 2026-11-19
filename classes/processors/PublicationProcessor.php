@@ -40,9 +40,12 @@ class PublicationProcessor extends SharedPublicationProcessor
      */
     public static function createInitialPublication(object $data, int $status = Submission::STATUS_PUBLISHED): Publication
     {
+        $status = (int) ($data->resolvedStatus ?? $status);
         $publication = parent::createInitialPublication($data, $status);
 
-        $publication->setData('datePublished', $data->datePublished);
+        if ($status === Submission::STATUS_PUBLISHED) {
+            $publication->setData('datePublished', $data->datePublished);
+        }
         $publication->setData('title', $data->monographTitle, $data->locale);
 
         return $publication;
@@ -90,6 +93,7 @@ class PublicationProcessor extends SharedPublicationProcessor
      */
     public static function createPublicationVersion(Publication $basePublication, object $data, int $status = Submission::STATUS_PUBLISHED): Publication
     {
+        $status = (int) ($data->resolvedStatus ?? $status);
         $newPublication = parent::createPublicationVersionCommons($basePublication, $data, $status);
 
         $coverImage = $basePublication->getData('coverImage');
@@ -128,10 +132,15 @@ class PublicationProcessor extends SharedPublicationProcessor
         );
 
         $publication->setData('version', (int)$data->version);
-        $publication->setData('status', Submission::STATUS_PUBLISHED);
+        $status = (int) ($data->resolvedStatus ?? Submission::STATUS_PUBLISHED);
+        $publication->setData('status', $status);
 
-        $datePublished = !empty($data->datePublished) ? $data->datePublished : $basePublication->getData('datePublished');
-        $publication->setData('datePublished', $datePublished);
+        if ($status === Submission::STATUS_PUBLISHED) {
+            $datePublished = !empty($data->datePublished) ? $data->datePublished : $basePublication->getData('datePublished');
+            $publication->setData('datePublished', $datePublished);
+        } else {
+            $publication->setData('datePublished', null);
+        }
 
         $oldPublication = Repo::publication()->get($publication->getId());
         Repo::publication()->dao->update($publication, $oldPublication);

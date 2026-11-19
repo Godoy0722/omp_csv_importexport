@@ -35,10 +35,12 @@ use APP\plugins\importexport\csv\shared\handlers\CSVFileHandler;
 use APP\plugins\importexport\csv\shared\handlers\DryModeReporter;
 use APP\plugins\importexport\csv\shared\processors\AuthorsProcessor;
 use APP\plugins\importexport\csv\shared\processors\CategoriesProcessor;
+use APP\plugins\importexport\csv\shared\processors\CurrentPublicationSelector;
 use APP\plugins\importexport\csv\shared\processors\FundersProcessor;
 use APP\plugins\importexport\csv\shared\processors\HtmlGalleyProcessor;
 use APP\plugins\importexport\csv\shared\processors\KeywordsProcessor;
 use APP\plugins\importexport\csv\shared\processors\SubjectsProcessor;
+use APP\plugins\importexport\csv\shared\processors\SubmissionFileProcessor;
 use APP\publication\Publication;
 use APP\submission\Submission;
 use Illuminate\Support\Facades\DB;
@@ -175,6 +177,12 @@ class MonographCommand
                         array_pad(array_map('trim', $fields), $this->expectedRowSize, null)
                     );
 
+                    $data->resolvedStatus = InvalidRowValidations::resolveSubmissionStatus($data->submissionStatus ?? null);
+                    $storedStatus = $this->storedStatusForExtraLocale($data);
+                    if ($storedStatus !== null) {
+                        $data->resolvedStatus = $storedStatus;
+                    }
+
                     if (
                         !empty($data->versionIdentifier)
                         && !empty($data->version)
@@ -202,6 +210,10 @@ class MonographCommand
                     // Checked up front so dry mode, which never copies the file, still reports a missing one.
                     if (!empty($data->filename)) {
                         InvalidRowValidations::validateSubmissionFiles($data->filename, $this->sourceDir);
+                    }
+
+                    if (!empty($data->submissionFiles)) {
+                        InvalidRowValidations::validateSubmissionFiles($data->submissionFiles, $this->sourceDir);
                     }
 
                     if ($data->references) {
@@ -241,8 +253,12 @@ class MonographCommand
 
                     InvalidRowValidations::validateContextLocale($press, $data->locale, $contextName);
 
-                    // Accepts YYYY-MM-DD or DD/MM/YYYY and stores YYYY-MM-DD.
-                    $data->datePublished = InvalidRowValidations::validateDateFormat($data->datePublished, 'datePublished');
+                    // Dates accept YYYY-MM-DD or DD/MM/YYYY and are stored as YYYY-MM-DD.
+                    // A queued or scheduled row has no publication date: its datePublished cell becomes the submission date.
+                    if ((int) $data->resolvedStatus !== Submission::STATUS_PUBLISHED) {
+                        $data->dateSubmitted = InvalidRowValidations::submissionDateFromPublicationCell($data->datePublished);
+                    }
+                    $data->datePublished = InvalidRowValidations::normalizePublicationDate((int) $data->resolvedStatus, $data->datePublished);
 
                     // The year becomes the ONIX publication date of the format, stored with format code 05 (YYYY).
                     if (!empty($data->year) && !preg_match('/^\d{4}$/', $data->year)) {
@@ -389,6 +405,29 @@ class MonographCommand
                                 $fileUploadUser,
                                 basename($data->filename)
                             );
+                        }
+
+                        // Private files for the editorial team, in the submission stage, not linked to a format.
+                        if (!$this->dryMode && !empty($data->submissionFiles)) {
+                            foreach (array_filter(array_map('trim', explode(';', $data->submissionFiles))) as $submissionFilename) {
+                                $privateFileId = $this->saveSubmissionFile(
+                                    "{$this->sourceDir}/{$submissionFilename}",
+                                    $this->fileManager->parseFileExtension($submissionFilename),
+                                    $press->getId(),
+                                    $submission->getId(),
+                                    'plugins.importexport.csv.errorWhileSavingSubmissionFile',
+                                    ['filename' => $submissionFilename]
+                                );
+
+                                SubmissionFileProcessor::processPrivate(
+                                    $data->locale,
+                                    $fileUploadUser->getId(),
+                                    $submission->getId(),
+                                    "{$this->sourceDir}/{$submissionFilename}",
+                                    $genreId,
+                                    $privateFileId
+                                );
+                            }
                         }
 
                         // Process HTML galley if provided
@@ -792,33 +831,31 @@ class MonographCommand
     }
 
     /**
-     * Set the highest version as current for each processed monograph identifier.
+     * Point each multi-version monograph at its current publication: the latest published version,
+     * or the latest version when none is published. The submission status follows it.
      */
     private function setCurrentVersionsForProcessedMonographs(): void
     {
-        foreach ($this->processedMonographs as $identifier => $versions) {
-            if (count($versions) <= 1) {
-                continue;
-            }
-
-            $highestVersion = 0;
-            $currentVersionData = null;
-
-            foreach ($versions as $versionKey => $locales) {
-                foreach($locales as $locale => $localeData) {
-                    $versionNumber = (int)$localeData['data']->version;
-                    if ($versionNumber > $highestVersion) {
-                        $highestVersion = $versionNumber;
-                        $currentVersionData = $localeData;
-                    }
-                }
-            }
-
-            if ($currentVersionData) {
-                $submission = $currentVersionData['submission'];
-                $publication = $currentVersionData['publication'];
-                SubmissionProcessor::setCurrentPublicationId($submission, $publication->getId());
-            }
+        foreach ($this->processedMonographs as $versions) {
+            CurrentPublicationSelector::apply($versions);
         }
+    }
+
+    /**
+     * A later locale of a version already imported in this run keeps the status
+     * from the row that created that version.
+     */
+    private function storedStatusForExtraLocale(object $data): ?int
+    {
+        if (empty($data->versionIdentifier) || empty($data->version)) {
+            return null;
+        }
+
+        $locales = $this->processedMonographs[$data->versionIdentifier][(int) $data->version] ?? [];
+        if ($locales === [] || isset($locales[$data->locale])) {
+            return null;
+        }
+
+        return (int) reset($locales)['publication']->getData('status');
     }
 }

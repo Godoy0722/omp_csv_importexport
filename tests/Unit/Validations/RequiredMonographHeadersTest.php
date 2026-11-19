@@ -90,6 +90,16 @@ class RequiredMonographHeadersTest extends BaseTestCase
         $this->assertTrue(RequiredMonographHeaders::validateRowHasAllRequiredFields($row));
     }
 
+    /**
+     * As in OJS, a queued or scheduled row still needs datePublished: the cell becomes its submission date.
+     */
+    public function testQueuedRowStillRequiresDatePublished(): void
+    {
+        $row = $this->row(['datePublished' => '', 'submissionStatus' => 'queued']);
+
+        $this->assertSame(['datePublished'], RequiredMonographHeaders::missingRequiredFields($row));
+    }
+
     public function testLaterVersionIsMultiVersionWithoutProcessedRows(): void
     {
         $row = $this->row(['versionIdentifier' => 'climate-study', 'version' => '2']);
