@@ -41,11 +41,17 @@ class ChaptersProcessor
      * on `#`. Every field other than chapterTitle requires a chapterTitle on
      * the same position (enforced by validateChapterFields).
      *
+     * A row that adds a locale to a publication translates its chapters: the n-th
+     * non-empty chapterTitle names the n-th existing chapter (by sequence) in the
+     * row locale, and that row's other chapter fields go to the same chapter. Only
+     * titles past the last existing chapter create new chapters.
+     *
      * @param array $fileContext File handling dependencies:
      *        fileManager, fileService, submissionId, pressId, genreId, user,
      *        locale, format
+     * @param bool $isExtraLocale Whether the row adds a locale to an already imported publication
      */
-    public static function process(object $data, Publication $publication, string $sourceDir, bool $dryMode, array $fileContext): ?Chapter
+    public static function process(object $data, Publication $publication, string $sourceDir, bool $dryMode, array $fileContext, bool $isExtraLocale = false): ?Chapter
     {
         $chapterTitle = trim((string) ($data->chapterTitle ?? ''));
         $chapterSubtitle = trim((string) ($data->chapterSubtitle ?? ''));
@@ -62,19 +68,32 @@ class ChaptersProcessor
 
         $chapterDao = CachedDaos::getChapterDao();
         $lastChapter = null;
+        $chaptersToTranslate = $isExtraLocale
+            ? array_values($chapterDao->getByPublicationId($publication->getId())->toArray())
+            : [];
+        $titlePosition = 0;
 
         foreach ($titles as $index => $title) {
             if ($title === '') {
                 continue;
             }
 
-            $cachedChapter = CachedEntities::getCachedChapter($title, $data->locale, $publication->getId());
-            $isNewChapter = $cachedChapter === null;
-            $chapter = $isNewChapter
-                ? static::findOrCreateChapter($title, $data->locale, $publication)
-                : $cachedChapter;
-
             $needsUpdate = false;
+            $chapterToTranslate = $chaptersToTranslate[$titlePosition++] ?? null;
+
+            if ($chapterToTranslate !== null) {
+                $chapter = $chapterToTranslate;
+                $isNewChapter = false;
+                $chapter->setTitle($title, $data->locale);
+                $needsUpdate = true;
+                CachedEntities::cacheChapter($chapter, $title, $data->locale, $publication->getId());
+            } else {
+                $cachedChapter = CachedEntities::getCachedChapter($title, $data->locale, $publication->getId());
+                $isNewChapter = $cachedChapter === null;
+                $chapter = $isNewChapter
+                    ? static::findOrCreateChapter($title, $data->locale, $publication)
+                    : $cachedChapter;
+            }
 
             $subtitle = $subtitles[$index] ?? '';
             if ($subtitle !== '') {
@@ -134,6 +153,8 @@ class ChaptersProcessor
         $chapter->setSequence(REALLY_BIG_NUMBER);
         $chapterDao->insertChapter($chapter);
         $chapterDao->resequenceChapters($publication->getId());
+        // Resequencing renumbers the stored chapters only; reload so a later updateObject() doesn't write the placeholder back.
+        $chapter = $chapterDao->getChapter($chapter->getId(), $publication->getId()) ?? $chapter;
 
         CachedEntities::cacheChapter($chapter, $chapterTitle, $locale, $publication->getId());
 
@@ -186,8 +207,7 @@ class ChaptersProcessor
             $submissionFile = Repo::submissionFile()->newDataObject();
             $submissionFile->setData('submissionId', $submissionId);
             $submissionFile->setData('uploaderUserId', $user->getId());
-            $submissionFile->setData('submissionLocale', $locale);
-            $submissionFile->setData('genreId', $genreId);
+                $submissionFile->setData('genreId', $genreId);
             $submissionFile->setData('fileStage', SubmissionFile::SUBMISSION_FILE_PRODUCTION_READY);
             $submissionFile->setData('mimetype', $fileManager->getDocumentType($filename) ?? 'application/octet-stream');
             $submissionFile->setData('fileId', $fileId);

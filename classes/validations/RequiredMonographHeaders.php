@@ -29,7 +29,6 @@ class RequiredMonographHeaders
         'authors',
         'submissionFiles', // Reserved: counted, not read yet
         'filename',
-        'fileLocale', // Reserved: counted, not read yet
         'keywords',
         'subjects',
         'coverage',
@@ -48,7 +47,6 @@ class RequiredMonographHeaders
         'licenseUrl',
         'references',
         'htmlGalley',
-        'htmlGalleyLocale', // Reserved: counted, not read yet
         'username',
         'funders',
         'supportingAgencies',

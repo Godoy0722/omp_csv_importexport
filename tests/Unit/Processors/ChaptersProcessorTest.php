@@ -81,14 +81,25 @@ class ChaptersProcessorTest extends BaseTestCase
             });
         $this->chapterDao->shouldReceive('insertChapter')
             ->andReturnUsing(function (Chapter $chapter) {
-                $chapter->setId(99);
+                $chapter->setId(99 + count($this->createdChapters));
                 $this->createdChapters[] = $chapter;
-                return 99;
+                return $chapter->getId();
             });
         $this->chapterDao->shouldReceive('updateObject')
             ->andReturn(true);
         $this->chapterDao->shouldReceive('resequenceChapters')
             ->andReturnNull();
+        // The stored chapter after resequencing: the inserted one, numbered by its position.
+        $this->chapterDao->shouldReceive('getChapter')
+            ->andReturnUsing(function (int $chapterId) {
+                foreach ($this->createdChapters as $position => $chapter) {
+                    if ($chapter->getId() === $chapterId) {
+                        $chapter->setSequence($position + 1);
+                        return $chapter;
+                    }
+                }
+                return null;
+            });
 
         DAORegistry::registerDAO('ChapterDAO', $this->chapterDao);
     }
@@ -466,8 +477,9 @@ class ChaptersProcessorTest extends BaseTestCase
         );
 
         $fileService->shouldHaveReceived('add')->once();
-        $submissionFileDao->shouldHaveReceived('updateChapterFiles')->once()->with([10], 99);
+        $submissionFileDao->shouldHaveReceived('updateChapterFiles')->once()->with([10], 100);
         $this->assertSame(SubmissionFile::SUBMISSION_FILE_PRODUCTION_READY, $capturedFile->getData('fileStage'));
+        $this->assertSame('chapter2.pdf', $capturedFile->getData('name', 'en'));
 
         $this->addToAssertionCount(1);
     }
@@ -532,5 +544,125 @@ class ChaptersProcessorTest extends BaseTestCase
         $this->assertSame(SubmissionFile::SUBMISSION_FILE_PRODUCTION_READY, $capturedFile->getData('fileStage'));
 
         $this->addToAssertionCount(1);
+    }
+
+    // ==================== Extra-locale rows translate chapters ====================
+
+    private function chapterWithId(int $id, string $title, string $locale): Chapter
+    {
+        $chapter = $this->existingChapter($title, $locale);
+        $chapter->setId($id);
+        return $chapter;
+    }
+
+    private function extraLocaleRow(array $values): object
+    {
+        return (object) array_merge([
+            'chapterTitle' => '',
+            'chapterSubtitle' => '',
+            'chapterAbstract' => '',
+            'chapterFiles' => '',
+            'chapterContributors' => '',
+            'locale' => 'pt_BR',
+        ], $values);
+    }
+
+    /**
+     * A pt_BR row adds its titles, subtitles and abstracts to the existing chapters, by position.
+     */
+    public function testExtraLocaleRowTranslatesExistingChaptersByPosition(): void
+    {
+        $intro = $this->chapterWithId(11, 'Introduction', 'en');
+        $intro->setAbstract('Overview', 'en');
+        $methods = $this->chapterWithId(12, 'Methods', 'en');
+        $methods->setSubtitle('Study design', 'en');
+        $this->existingChapters = [$intro, $methods];
+
+        ChaptersProcessor::process(
+            $this->extraLocaleRow([
+                'chapterTitle' => 'Introdução;Métodos',
+                'chapterSubtitle' => ';Desenho do estudo',
+                'chapterAbstract' => 'Visão geral;',
+            ]),
+            $this->mockPublication(),
+            $this->sourceDir,
+            false,
+            [],
+            true
+        );
+
+        // Each chapter holds both locales of its title, subtitle and abstract; no chapter is added.
+        $this->assertSame([], $this->createdChapters);
+        $this->assertSame(['en' => 'Introduction', 'pt_BR' => 'Introdução'], $intro->getData('title'));
+        $this->assertSame(['en' => 'Overview', 'pt_BR' => 'Visão geral'], $intro->getData('abstract'));
+        $this->assertSame(['en' => 'Methods', 'pt_BR' => 'Métodos'], $methods->getData('title'));
+        $this->assertSame(['en' => 'Study design', 'pt_BR' => 'Desenho do estudo'], $methods->getData('subtitle'));
+        $this->chapterDao->shouldHaveReceived('updateObject')->with($intro);
+        $this->chapterDao->shouldHaveReceived('updateObject')->with($methods);
+    }
+
+    /**
+     * Only titles past the last existing chapter create chapters.
+     */
+    public function testExtraLocaleRowCreatesOnlyChaptersBeyondTheExistingOnes(): void
+    {
+        $intro = $this->chapterWithId(11, 'Introduction', 'en');
+        $this->existingChapters = [$intro];
+
+        ChaptersProcessor::process(
+            $this->extraLocaleRow(['chapterTitle' => 'Introdução;Apêndice']),
+            $this->mockPublication(),
+            $this->sourceDir,
+            false,
+            [],
+            true
+        );
+
+        $this->assertSame('Introdução', $intro->getData('title', 'pt_BR'));
+        $this->assertCount(1, $this->createdChapters);
+        $this->assertSame('Apêndice', $this->createdChapters[0]->getData('title', 'pt_BR'));
+    }
+
+    /**
+     * A row of the base locale still matches chapters by title, so a different title is a new chapter.
+     */
+    public function testBaseLocaleRowStillMatchesChaptersByTitle(): void
+    {
+        $this->existingChapters = [$this->chapterWithId(11, 'Introduction', 'en')];
+
+        ChaptersProcessor::process(
+            $this->extraLocaleRow(['chapterTitle' => 'Conclusion', 'locale' => 'en']),
+            $this->mockPublication(),
+            $this->sourceDir,
+            false,
+            []
+        );
+
+        $this->assertCount(1, $this->createdChapters);
+        $this->assertSame('Conclusion', $this->createdChapters[0]->getData('title', 'en'));
+    }
+
+    /**
+     * A new chapter keeps the sequence the database gave it, so updating it later does not write the placeholder back.
+     */
+    public function testCreatedChapterCarriesTheStoredSequence(): void
+    {
+        $chapter = ChaptersProcessor::process(
+            (object) [
+                'chapterTitle' => 'Intro',
+                'chapterSubtitle' => 'Sub',
+                'chapterAbstract' => '',
+                'chapterFiles' => '',
+                'chapterContributors' => '',
+                'locale' => 'en',
+            ],
+            $this->mockPublication(),
+            $this->sourceDir,
+            false,
+            []
+        );
+
+        $this->assertEquals(1, $chapter->getSequence());
+        $this->chapterDao->shouldHaveReceived('updateObject')->with($chapter);
     }
 }

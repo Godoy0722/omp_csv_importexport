@@ -20,16 +20,46 @@ use APP\facades\Repo;
 use APP\plugins\importexport\csv\classes\cachedAttributes\CachedEntities;
 use APP\plugins\importexport\csv\shared\processors\SectionsProcessor as SharedSectionsProcessor;
 use APP\publication\Publication;
+use Illuminate\Support\Str;
 
 class SectionsProcessor extends SharedSectionsProcessor
 {
     /**
+     * Path for a new series named $title: its slug, with "-2", "-3"… appended when the press already uses it.
+     *
+     * @param string[] $existingPaths Lower-cased paths already used in the press
+     */
+    public static function generateUniqueSeriesPath(string $title, array $existingPaths): string
+    {
+        $base = Str::slug($title) ?: 'series';
+        $existing = array_fill_keys($existingPaths, true);
+
+        $candidate = $base;
+        $suffix = 1;
+        while (isset($existing[$candidate])) {
+            $candidate = $base . '-' . ++$suffix;
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * Create a series from the row's seriesTitle and seriesPath, and assign it to the publication.
+     * An empty title takes the path; an empty path is generated from the title, so no series has an empty path.
+     *
      * @overrides shared method
      */
     public static function newSectionToPublication(object $data, int $contextId, Publication $publication): void
     {
-        if (empty($data->sectionTitle)) {
+        $seriesPath = mb_strtolower(trim($data->seriesPath ?? ''));
+        $seriesTitle = trim($data->seriesTitle ?? '') ?: $seriesPath;
+
+        if ($seriesTitle === '') {
             return;
+        }
+
+        if ($seriesPath === '') {
+            $seriesPath = static::generateUniqueSeriesPath($seriesTitle, CachedEntities::getSectionPaths($contextId));
         }
 
         $section = Repo::section()->newDataObject();
@@ -38,8 +68,8 @@ class SectionsProcessor extends SharedSectionsProcessor
         $section->setSequence(REALLY_BIG_NUMBER);
         $section->setEditorRestricted(false);
         $section->setIsInactive(false);
-        $section->setTitle($data->sectionTitle, $data->locale);
-        $section->setPath(mb_strtolower(trim($data->sectionAbbrev)));
+        $section->setTitle($seriesTitle, $data->locale);
+        $section->setPath($seriesPath);
 
         $sectionId = Repo::section()->add($section);
 
@@ -49,51 +79,44 @@ class SectionsProcessor extends SharedSectionsProcessor
         PublicationProcessor::updateSeriesId($publication, $sectionId);
     }
 
+    /**
+     * Assign the row's series to the publication, creating it when the press has none that matches.
+     *
+     * The path is unique in a press, so a row with a seriesPath is matched by path alone (its title may be
+     * in another locale). A row with only a seriesTitle is matched by title in the row locale.
+     * A row with neither inherits the series of the base publication, if any.
+     */
     public static function process(object $data, int $pressId, Publication $publication, ?Publication $basePublication = null): void
     {
-        // For versioned imports without series data, inherit from base publication
-        if (empty($data->seriesTitle) && empty($data->seriesPath) && !is_null($basePublication)) {
-            $baseSeriesId = $basePublication->getData('seriesId');
-            $locale = $basePublication->getData('locale') ?? $data->locale;
+        $seriesTitle = trim($data->seriesTitle ?? '');
+        $seriesPath = trim($data->seriesPath ?? '');
 
+        if ($seriesTitle === '' && $seriesPath === '') {
+            $baseSeriesId = $basePublication?->getData('seriesId');
             if (!is_null($baseSeriesId)) {
+                $locale = $basePublication->getData('locale') ?? $data->locale;
                 $section = CachedEntities::getCachedSectionById($baseSeriesId, $pressId, $locale);
 
                 if (!is_null($section)) {
                     PublicationProcessor::updateSeriesId($publication, $section->getId());
-                    return;
                 }
             }
-        }
 
-        if (empty($data->seriesTitle) && empty($data->seriesPath)) {
             return;
         }
 
-        // Try lookup by seriesPath first (OMP-specific)
-        if (!empty($data->seriesPath)) {
-            $section = CachedEntities::getCachedSectionByPath($data->seriesPath, $pressId);
+        $section = CachedEntities::getCachedSection(
+            $seriesPath === '' ? $seriesTitle : '',
+            $seriesPath,
+            $data->locale,
+            $pressId
+        );
 
-            if (!is_null($section)) {
-                PublicationProcessor::updateSeriesId($publication, $section->getId());
-                return;
-            }
+        if (!is_null($section)) {
+            PublicationProcessor::updateSeriesId($publication, $section->getId());
+            return;
         }
 
-        // Try lookup by title + abbrev (shared pattern — seriesTitle used as sectionTitle)
-        if (!empty($data->seriesTitle)) {
-            $sectionAbbrev = $data->seriesPath ?? $data->seriesTitle;
-            $section = CachedEntities::getCachedSection($data->seriesTitle, $sectionAbbrev, $data->locale, $pressId);
-
-            if (!is_null($section)) {
-                PublicationProcessor::updateSeriesId($publication, $section->getId());
-                return;
-            }
-
-            $data->sectionTitle = $data->seriesTitle;
-            $data->sectionAbbrev = $data->seriesPath ?? mb_strtolower(trim($data->seriesTitle));
-
-            static::newSectionToPublication($data, $pressId, $publication);
-        }
+        static::newSectionToPublication($data, $pressId, $publication);
     }
 }

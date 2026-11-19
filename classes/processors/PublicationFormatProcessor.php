@@ -26,13 +26,12 @@ class PublicationFormatProcessor
 {
     /**
      * Create a digital PDF publication format with ONIX codes.
+     * The format gets no DOI: the row DOI belongs to the publication only.
      *
      * @return int The publication format ID
      */
-    public static function createPublicationFormat(
-        int $publicationId,
-        ?string $doi = null
-    ): int {
+    public static function createPublicationFormat(int $publicationId): int
+    {
         $publicationFormatDao = CachedDaos::getPublicationFormatDao();
 
         $publicationFormat = $publicationFormatDao->newDataObject();
@@ -44,14 +43,8 @@ class PublicationFormatProcessor
         $publicationFormat->setEntryKey('DA'); // ONIX code for Digital
         $publicationFormat->setSequence(REALLY_BIG_NUMBER);
         $publicationFormatDao->insertObject($publicationFormat);
-        $publicationFormatId = $publicationFormat->getId();
 
-        if ($doi) {
-            $publicationFormat->setStoredPubId('doi', $doi);
-            $publicationFormatDao->updateObject($publicationFormat);
-        }
-
-        return $publicationFormatId;
+        return $publicationFormat->getId();
     }
 
     /**
@@ -71,6 +64,7 @@ class PublicationFormatProcessor
 
     /**
      * Create and associate a submission file with a publication format.
+     * The file is named $fileName in $locale, the row locale (a file has no language of its own in OMP).
      * Assumes open access with no price.
      */
     public static function createSubmissionFile(
@@ -80,23 +74,19 @@ class PublicationFormatProcessor
         int $genreId,
         string $locale,
         User $user,
-        ?string $mimeType = null,
-        ?string $fileName = null
+        string $fileName,
+        ?string $mimeType = null
     ): void {
         $submissionFile = Repo::submissionFile()->newDataObject();
         $submissionFile->setData('submissionId', $submissionId);
         $submissionFile->setData('uploaderUserId', $user->getId());
-        $submissionFile->setData('submissionLocale', $locale);
         $submissionFile->setData('genreId', $genreId);
         $submissionFile->setData('fileStage', SubmissionFile::SUBMISSION_FILE_PROOF);
         $submissionFile->setData('assocType', Application::ASSOC_TYPE_REPRESENTATION);
         $submissionFile->setData('assocId', $publicationFormatId);
         $submissionFile->setData('mimetype', $mimeType ?? 'application/pdf');
         $submissionFile->setData('fileId', $fileId);
-
-        if ($fileName !== null) {
-            $submissionFile->setData('name', $fileName, $locale);
-        }
+        $submissionFile->setData('name', $fileName, $locale);
 
         // Assume open access, no price, viewable
         $submissionFile->setDirectSalesPrice(0);

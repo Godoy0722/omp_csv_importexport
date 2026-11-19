@@ -17,7 +17,6 @@
 
 namespace APP\plugins\importexport\csv\classes\cachedAttributes;
 
-use APP\facades\Repo;
 use APP\monograph\Chapter;
 use APP\press\Press;
 use APP\section\Section;
@@ -109,77 +108,26 @@ class CachedEntities extends SharedCachedEntities
         return self::$presses[$pressPath] ?? self::$presses[$pressPath] = $pressDao->getByPath($pressPath);
     }
 
-    /** Retrieves a cached Section (series) by its path and contextId. Returns null if not found. */
-    static function getCachedSectionByPath(string $seriesPath, int $contextId): ?Section
+    /**
+     * OMP series have no abbreviation: a row identifies a series by its path.
+     *
+     * @overrides SharedCachedEntities::sectionAbbrevOf()
+     */
+    protected static function sectionAbbrevOf(Section $section, string $locale): string|array|null
     {
-        $cacheKey = "path_{$seriesPath}_{$contextId}";
-
-        if (isset(static::$sections[$cacheKey])) {
-            return static::$sections[$cacheKey];
-        }
-
-        $section = Repo::section()->getByPath($seriesPath, $contextId);
-
-        if ($section) {
-            static::$sections[$cacheKey] = $section;
-            static::$sections["sectionId_{$section->getId()}"] = $section;
-        }
-
-        return static::$sections[$cacheKey] ?? null;
+        return $section->getPath();
     }
 
     /**
-     * Override shared method — OMP Section uses getPath() instead of getAbbrev().
-     * Retrieves a cached Section by title and path, for a given locale and contextId.
+     * Paths of the press's series, lower-cased (paths are unique per press).
      *
-     * @overrides SharedCachedEntities::getCachedSection()
+     * @return string[]
      */
-    static function getCachedSection(string $sectionTitle, string $sectionAbbrev, string $locale, int $contextId): ?Section
+    static function getSectionPaths(int $contextId): array
     {
-        $customSectionKey = $sectionTitle . '_' . mb_strtoupper(trim($sectionAbbrev));
-
-        if (isset(static::$sections[$customSectionKey])) {
-            return static::$sections[$customSectionKey];
-        }
-
-        $sections = Repo::section()->getCollector()
-            ->filterByContextIds([$contextId])
-            ->getMany();
-
-        foreach ($sections as $section) {
-            $sectionPath = $section->getPath() ?? '';
-            if ($sectionPath === $sectionAbbrev && $section->getTitle($locale) === $sectionTitle) {
-                static::$sections["sectionId_{$section->getId()}"] = $section;
-                return static::$sections[$customSectionKey] = $section;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Override shared method — OMP Section uses getPath() instead of getAbbrev().
-     *
-     * @overrides SharedCachedEntities::getCachedSectionById()
-     */
-    static function getCachedSectionById(int $baseSectionId, int $contextId, string $locale): ?Section
-    {
-        if (isset(static::$sections["sectionId_{$baseSectionId}"])) {
-            return static::$sections["sectionId_{$baseSectionId}"];
-        }
-
-        $section = Repo::section()->get($baseSectionId, $contextId);
-        if (!$section) {
-            return null;
-        }
-
-        $sectionTitle = $section->getTitle($locale);
-        $sectionPath = $section->getPath() ?? '';
-        $customSectionKey = $sectionTitle . '_' . mb_strtoupper(trim($sectionPath));
-
-        static::$sections["sectionId_{$baseSectionId}"] = $section;
-        static::$sections[$customSectionKey] = $section;
-
-        return $section;
+        return array_values(array_filter(array_map(
+            fn (Section $section) => mb_strtolower(trim((string) $section->getPath())),
+            static::getSectionsForContext($contextId)
+        )));
     }
 }

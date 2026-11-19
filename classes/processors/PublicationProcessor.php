@@ -62,6 +62,10 @@ class PublicationProcessor extends SharedPublicationProcessor
             $submissionPublication->setData('abstract', $normalizedAbstract, $data->locale);
         }
 
+        if (!empty($data->coverage)) {
+            $submissionPublication->setData('coverage', $data->coverage, $data->locale);
+        }
+
         $oldPublication = Repo::publication()->get($submissionPublication->getId());
         Repo::publication()->dao->update($submissionPublication, $oldPublication);
 

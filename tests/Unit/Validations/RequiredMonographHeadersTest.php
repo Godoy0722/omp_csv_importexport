@@ -24,17 +24,20 @@ use PHPUnit\Framework\Attributes\CoversClass;
 class RequiredMonographHeadersTest extends BaseTestCase
 {
     /**
-     * The layout has 38 columns: monographPrefix is gone and the four reserved columns are present.
+     * The layout has 36 columns: monographPrefix is gone and the two reserved columns are present.
+     * There is no fileLocale or htmlGalleyLocale column: OMP formats and their files have no language of their own.
      */
     public function testLayoutHasThirtyEightColumnsWithReservedColumns(): void
     {
         $headers = RequiredMonographHeaders::$monographHeaders;
 
-        $this->assertCount(38, $headers);
+        $this->assertCount(36, $headers);
         $this->assertNotContains('monographPrefix', $headers);
-        foreach (['submissionFiles', 'fileLocale', 'submissionStatus', 'htmlGalleyLocale'] as $reserved) {
+        foreach (['submissionFiles', 'submissionStatus'] as $reserved) {
             $this->assertContains($reserved, $headers);
         }
+        $this->assertNotContains('fileLocale', $headers);
+        $this->assertNotContains('htmlGalleyLocale', $headers);
         $this->assertSame(count($headers), count(array_unique($headers)));
     }
 
@@ -55,9 +58,7 @@ class RequiredMonographHeadersTest extends BaseTestCase
         $position = array_flip($headers);
 
         $this->assertSame($position['filename'] - 1, $position['submissionFiles']);
-        $this->assertSame($position['filename'] + 1, $position['fileLocale']);
         $this->assertSame($position['datePublished'] - 1, $position['submissionStatus']);
-        $this->assertSame($position['htmlGalley'] + 1, $position['htmlGalleyLocale']);
     }
 
     /**
@@ -163,6 +164,20 @@ class RequiredMonographHeadersTest extends BaseTestCase
     /**
      * A row in the old 35-column layout is rejected by the column count.
      */
+    /**
+     * A row still carrying the removed fileLocale and htmlGalleyLocale columns (38 fields) is rejected by the count.
+     */
+    public function testRowWithTheRemovedLocaleColumnsIsRejected(): void
+    {
+        $this->expectException(RowValidationException::class);
+        $this->expectExceptionMessage('rowContainsTooManyFields');
+
+        InvalidRowValidations::validateRowContainAllFields(
+            array_fill(0, 38, ''),
+            count(RequiredMonographHeaders::$monographHeaders)
+        );
+    }
+
     public function testOldThirtyFiveColumnRowIsRejected(): void
     {
         $this->expectException(RowValidationException::class);

@@ -100,6 +100,9 @@ msgstr "This is a <b>Data Validation</b> for <b>monographs</b> — nothing was s
 msgid "plugins.importexport.csv.duplicateDoi"
 msgstr "The DOI \"{$doi}\" already exists in this press."
 
+msgid "plugins.importexport.csv.invalidYear"
+msgstr "The year \"{$year}\" must have four digits (YYYY)."
+
 msgid "plugins.importexport.csv.chapterFieldWithoutChapterTitle"
 msgstr "{$field} has a value at position {$position}, but chapterTitle is empty at that position."
 

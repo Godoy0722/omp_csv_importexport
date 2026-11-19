@@ -27,6 +27,7 @@ use APP\plugins\importexport\csv\classes\processors\PublicationProcessor;
 use APP\plugins\importexport\csv\classes\processors\SectionsProcessor;
 use APP\plugins\importexport\csv\classes\processors\SubmissionProcessor;
 use APP\plugins\importexport\csv\classes\validations\ChapterValidations;
+use APP\plugins\importexport\csv\classes\validations\InvalidRowValidations;
 use APP\plugins\importexport\csv\classes\validations\RequiredMonographHeaders;
 use APP\plugins\importexport\csv\shared\exceptions\CsvEncodingException;
 use APP\plugins\importexport\csv\shared\exceptions\RowValidationException;
@@ -38,7 +39,6 @@ use APP\plugins\importexport\csv\shared\processors\FundersProcessor;
 use APP\plugins\importexport\csv\shared\processors\HtmlGalleyProcessor;
 use APP\plugins\importexport\csv\shared\processors\KeywordsProcessor;
 use APP\plugins\importexport\csv\shared\processors\SubjectsProcessor;
-use APP\plugins\importexport\csv\shared\validations\InvalidRowValidations;
 use APP\publication\Publication;
 use APP\submission\Submission;
 use Illuminate\Support\Facades\DB;
@@ -244,10 +244,16 @@ class MonographCommand
                     // Accepts YYYY-MM-DD or DD/MM/YYYY and stores YYYY-MM-DD.
                     $data->datePublished = InvalidRowValidations::validateDateFormat($data->datePublished, 'datePublished');
 
+                    // The year becomes the ONIX publication date of the format, stored with format code 05 (YYYY).
+                    if (!empty($data->year) && !preg_match('/^\d{4}$/', $data->year)) {
+                        throw new RowValidationException(__('plugins.importexport.csv.invalidYear', ['year' => $data->year]));
+                    }
+
                     InvalidRowValidations::validateDoiNotDuplicate(
                         $data->doi ?? null,
                         CachedEntities::getExistingDois($press->getId()),
-                        $this->importedDois
+                        $this->importedDois,
+                        $this->doiOfVersionInAnotherLocale($data)
                     );
 
                     $genreName = 'MANUSCRIPT';
@@ -267,13 +273,7 @@ class MonographCommand
                     ChapterValidations::validateChapterFields($data, $this->sourceDir);
 
                     if ($data->htmlGalley) {
-                        InvalidRowValidations::validateHtmlGalleys(
-                            $data->htmlGalley,
-                            $data->htmlGalleyLocale ?? '',
-                            $this->sourceDir,
-                            $press,
-                            $contextName
-                        );
+                        InvalidRowValidations::validateHtmlGalley($data->htmlGalley, $this->sourceDir, $press, $contextName);
                     }
 
                     $this->initializeStaticVariables();
@@ -363,10 +363,7 @@ class MonographCommand
                     // In OMP, files are attached to PublicationFormats (not galleys)
                     // Create for new submissions AND new versions, but not multi-locale imports
                     if (!$isMultiLocaleImport) {
-                        $publicationFormatId = PublicationFormatProcessor::createPublicationFormat(
-                            $publication->getId(),
-                            $data->doi ?? null
-                        );
+                        $publicationFormatId = PublicationFormatProcessor::createPublicationFormat($publication->getId());
 
                         if (!empty($data->year)) {
                             PublicationFormatProcessor::createPublicationDate($publicationFormatId, $data->year);
@@ -389,7 +386,8 @@ class MonographCommand
                                 $fileId,
                                 $genreId,
                                 $data->locale,
-                                $fileUploadUser
+                                $fileUploadUser,
+                                basename($data->filename)
                             );
                         }
 
@@ -417,10 +415,7 @@ class MonographCommand
                                     ['filename' => $htmlFile]
                                 );
 
-                                $htmlPublicationFormatId = PublicationFormatProcessor::createPublicationFormat(
-                                    $publication->getId(),
-                                    null
-                                );
+                                $htmlPublicationFormatId = PublicationFormatProcessor::createPublicationFormat($publication->getId());
 
                                 PublicationFormatProcessor::createSubmissionFile(
                                     $submission->getId(),
@@ -429,8 +424,8 @@ class MonographCommand
                                     $genreId,
                                     $data->locale,
                                     $fileUploadUser,
-                                    'text/html',
-                                    pathinfo($htmlFile, PATHINFO_BASENAME)
+                                    basename($htmlFile),
+                                    'text/html'
                                 );
 
                                 if (!empty($dependentFiles)) {
@@ -477,13 +472,6 @@ class MonographCommand
                         PublicationProcessor::processSupportingAgencies($data, $publication, $basePublication);
                     }
 
-                    if (
-                        ((!empty($data->version) && (int) $data->version === 1) || empty($data->version))
-                        && $data->coverage
-                    ) {
-                        PublicationProcessor::updateCoverage($publication, $data->coverage, $data->locale);
-                    }
-
                     SectionsProcessor::process($data, $press->getId(), $publication, $basePublication);
 
                     ChaptersProcessor::process(
@@ -500,7 +488,8 @@ class MonographCommand
                             'user' => $fileUploadUser,
                             'locale' => $data->locale,
                             'format' => $this->format,
-                        ]
+                        ],
+                        $isMultiLocaleImport
                     );
 
                     if ($data->categories || $basePublication) {
@@ -683,7 +672,25 @@ class MonographCommand
         }
     }
 
-    private function trackProcessedMonograph(object $data, Submission $submission, Publication $publication): void
+    /**
+     * DOI of the publication an extra-locale row adds its locale to, or null when the row is not one.
+     * That row may repeat the DOI: it describes the same publication.
+     */
+    private function doiOfVersionInAnotherLocale(object $data): ?string
+    {
+        if (empty($data->versionIdentifier) || empty($data->version)) {
+            return null;
+        }
+
+        $localeRows = $this->processedMonographs[$data->versionIdentifier][(int) $data->version] ?? [];
+        if ($localeRows === [] || isset($localeRows[$data->locale])) {
+            return null;
+        }
+
+        return reset($localeRows)['publication']->getDoi();
+    }
+
+        private function trackProcessedMonograph(object $data, Submission $submission, Publication $publication): void
     {
         $identifier = $data->versionIdentifier;
         $version = (int)$data->version;
