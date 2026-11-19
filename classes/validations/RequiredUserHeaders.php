@@ -44,14 +44,23 @@ class RequiredUserHeaders
         return count($row) === count(self::$userHeaders);
     }
 
-    public static function validateRowHasAllRequiredFields(object $row): bool
+    /**
+     * @return string[] Required column names that are empty on this row
+     */
+    public static function missingRequiredFields(object $row): array
     {
+        $missing = [];
         foreach (self::$userRequiredHeaders as $requiredHeader) {
             if (!$row->{$requiredHeader}) {
-                return false;
+                $missing[] = $requiredHeader;
             }
         }
 
-        return true;
+        return $missing;
+    }
+
+    public static function validateRowHasAllRequiredFields(object $row): bool
+    {
+        return self::missingRequiredFields($row) === [];
     }
 }

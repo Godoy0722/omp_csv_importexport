@@ -39,9 +39,9 @@ class PublicationProcessor extends SharedPublicationProcessor
      * Create a temporary Publication without association with Submission.
      * This Publication will be used to create the Submission and then updated.
      */
-    public static function createInitialPublication(object $data): Publication
+    public static function createInitialPublication(object $data, int $status = Submission::STATUS_PUBLISHED): Publication
     {
-        $publication = parent::createInitialPublication($data);
+        $publication = parent::createInitialPublication($data, $status);
 
         $publication->setData('datePublished', $data->datePublished);
         $publication->setData('title', $data->monographTitle, $data->locale);
@@ -89,9 +89,9 @@ class PublicationProcessor extends SharedPublicationProcessor
     /**
      * Create a new publication version manually to avoid CLI context dependency.
      */
-    public static function createPublicationVersion(Publication $basePublication, object $data, Press $press): Publication
+    public static function createPublicationVersion(Publication $basePublication, object $data, int $status = Submission::STATUS_PUBLISHED): Publication
     {
-        $newPublication = parent::createPublicationVersionCommons($basePublication, $data, $press);
+        $newPublication = parent::createPublicationVersionCommons($basePublication, $data, $status);
 
         $coverImage = $basePublication->getData('coverImage');
         if (!empty($coverImage)) {
@@ -143,8 +143,8 @@ class PublicationProcessor extends SharedPublicationProcessor
     /**
      * Process multi-locale publication data (adds new locale to existing publication).
      */
-    public static function processMultiLocalePublication(Publication $publication, object $data, Press $press): Publication
+    public static function processMultiLocalePublication(Publication $publication, object $data): Publication
     {
-        return parent::processMultiLocalePublicationCommons($publication, $data, $press, static::LOCALIZED_FIELDS, static::NON_LOCALIZED_FIELDS);
+        return parent::processMultiLocalePublicationCommons($publication, $data, static::LOCALIZED_FIELDS, static::NON_LOCALIZED_FIELDS);
     }
 }

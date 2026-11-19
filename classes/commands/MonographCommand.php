@@ -28,6 +28,7 @@ use APP\plugins\importexport\csv\classes\processors\SectionsProcessor;
 use APP\plugins\importexport\csv\classes\processors\SubmissionProcessor;
 use APP\plugins\importexport\csv\classes\validations\ChapterValidations;
 use APP\plugins\importexport\csv\classes\validations\RequiredMonographHeaders;
+use APP\plugins\importexport\csv\shared\exceptions\CsvEncodingException;
 use APP\plugins\importexport\csv\shared\exceptions\RowValidationException;
 use APP\plugins\importexport\csv\shared\handlers\CSVFileHandler;
 use APP\plugins\importexport\csv\shared\handlers\DryModeReporter;
@@ -126,7 +127,22 @@ class MonographCommand
             }
 
             $filePath = $fileInfo->getPathname();
-            $file = CSVFileHandler::createReadableCSVFile($filePath);
+            try {
+                $file = CSVFileHandler::createReadableCSVFile($filePath);
+            } catch (CsvEncodingException $e) {
+                echo $e->getMessage() . "\n";
+                $results['perFile'][] = [
+                    'filename' => $basename,
+                    'rows' => 0,
+                    'successful' => 0,
+                    'failed' => 1,
+                    'errors' => [['row' => 0, 'reason' => $e->getMessage()]],
+                    'invalidFile' => null,
+                ];
+                $results['filesProcessed']++;
+                $results['failedRows']++;
+                continue;
+            }
 
             if (is_null($file)) {
                 continue;
@@ -174,7 +190,7 @@ class MonographCommand
                     }
 
                     InvalidRowValidations::validateRowHasAllRequiredFieldsCommons($data, function($row) {
-                        return RequiredMonographHeaders::validateRowHasAllRequiredFields($row, $this->processedMonographs);
+                        return RequiredMonographHeaders::missingRequiredFields($row, $this->processedMonographs);
                     });
 
                     InvalidRowValidations::validateContextVersioningFields($data);
@@ -209,7 +225,8 @@ class MonographCommand
                     if ($this->currentPressPath !== null && $data->pressPath !== $this->currentPressPath) {
                         throw new RowValidationException(
                             __('plugins.importexport.csv.contextPathMismatch', [
-                                'contextType' => 'press',
+                                'contextColumn' => 'pressPath',
+                                'context' => __('context.context'),
                                 'csvContextPath' => $data->pressPath,
                                 'currentContextPath' => $this->currentPressPath,
                             ])
@@ -218,7 +235,8 @@ class MonographCommand
 
                     InvalidRowValidations::validateContextLocale($press, $data->locale, 'Press');
 
-                    InvalidRowValidations::validateDateFormat($data->datePublished, 'datePublished');
+                    // Accepts YYYY-MM-DD or DD/MM/YYYY and stores YYYY-MM-DD.
+                    $data->datePublished = InvalidRowValidations::validateDateFormat($data->datePublished, 'datePublished');
 
                     if (!empty($data->doi)) {
                         $existingDois = CachedEntities::getExistingDois($press->getId());
@@ -242,7 +260,13 @@ class MonographCommand
                     ChapterValidations::validateChapterFields($data, $this->sourceDir);
 
                     if ($data->htmlGalley) {
-                        InvalidRowValidations::validateHtmlGalleys($data->htmlGalley, $this->sourceDir);
+                        InvalidRowValidations::validateHtmlGalleys(
+                            $data->htmlGalley,
+                            $data->htmlGalleyLocale ?? '',
+                            $this->sourceDir,
+                            $press,
+                            'Press'
+                        );
                     }
 
                     $this->initializeStaticVariables();
@@ -304,11 +328,11 @@ class MonographCommand
                         $submission = $existingSubmission;
                         $publication = $basePublication;
 
-                        $publication = PublicationProcessor::processMultiLocalePublication($publication, $data, $press);
+                        $publication = PublicationProcessor::processMultiLocalePublication($publication, $data);
                     } elseif ($existingSubmission && $basePublication) {
                         // New version import
                         $submission = $existingSubmission;
-                        $publication = PublicationProcessor::createPublicationVersion($basePublication, $data, $press);
+                        $publication = PublicationProcessor::createPublicationVersion($basePublication, $data);
 
                         $publication = PublicationProcessor::processVersionedPublication($publication, $data, $basePublication, $this->sourceDir);
                     } else {

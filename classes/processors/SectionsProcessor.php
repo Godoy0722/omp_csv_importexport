@@ -44,8 +44,7 @@ class SectionsProcessor extends SharedSectionsProcessor
         $sectionId = Repo::section()->add($section);
 
         $createdSection = Repo::section()->get($sectionId, $contextId);
-        $customSectionKey = $data->sectionTitle . '_' . mb_strtoupper(trim($data->sectionAbbrev));
-        CachedEntities::$sections[$customSectionKey] = $createdSection;
+        CachedEntities::indexSection($createdSection, $contextId);
 
         PublicationProcessor::updateSeriesId($publication, $sectionId);
     }

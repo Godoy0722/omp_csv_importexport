@@ -18,6 +18,7 @@ namespace APP\plugins\importexport\csv\classes\commands;
 
 use APP\plugins\importexport\csv\classes\cachedAttributes\CachedEntities;
 use APP\plugins\importexport\csv\classes\validations\RequiredUserHeaders;
+use APP\plugins\importexport\csv\shared\exceptions\CsvEncodingException;
 use APP\plugins\importexport\csv\shared\exceptions\RowValidationException;
 use APP\plugins\importexport\csv\shared\handlers\CSVFileHandler;
 use APP\plugins\importexport\csv\shared\handlers\DryModeReporter;
@@ -88,7 +89,26 @@ class UserCommand
             }
 
             $filePath = $fileInfo->getPathname();
-            $file = CSVFileHandler::createReadableCSVFile($filePath);
+            try {
+                $file = CSVFileHandler::createReadableCSVFile($filePath);
+            } catch (CsvEncodingException $e) {
+                echo $e->getMessage() . "\n";
+                $results['perFile'][] = [
+                    'filename' => $basename,
+                    'rows' => 0,
+                    'successful' => 0,
+                    'created' => 0,
+                    'updated' => 0,
+                    'updatedUsers' => [],
+                    'failed' => 1,
+                    'errors' => [['row' => 0, 'reason' => $e->getMessage()]],
+                    'invalidFile' => null,
+                ];
+                $results['filesProcessed']++;
+                $results['failedRows']++;
+                continue;
+            }
+
             if (is_null($file)) {
                 continue;
             }
@@ -121,7 +141,7 @@ class UserCommand
                     $fieldsList = array_pad(array_map('trim', $fields), $this->expectedRowSize, null);
                     $data = (object) array_combine(RequiredUserHeaders::$userHeaders, $fieldsList);
 
-                    InvalidRowValidations::validateRowHasAllRequiredFieldsCommons($data, [RequiredUserHeaders::class, 'validateRowHasAllRequiredFields']);
+                    InvalidRowValidations::validateRowHasAllRequiredFieldsCommons($data, [RequiredUserHeaders::class, 'missingRequiredFields']);
 
                     $press = CachedEntities::getCachedPress($data->pressPath);
 
@@ -130,7 +150,8 @@ class UserCommand
                     if ($this->currentPressPath !== null && $data->pressPath !== $this->currentPressPath) {
                         throw new RowValidationException(
                             __('plugins.importexport.csv.contextPathMismatch', [
-                                'contextType' => 'press',
+                                'contextColumn' => 'pressPath',
+                                'context' => __('context.context'),
                                 'csvContextPath' => $data->pressPath,
                                 'currentContextPath' => $this->currentPressPath,
                             ])
@@ -148,7 +169,7 @@ class UserCommand
                         }
 
                         if (empty($data->username)) {
-                            $data->username = UsersProcessor::getValidUsername($data->firstname, $data->lastname);
+                            $data->username = Validation::suggestUsername($data->firstname, $data->lastname);
                         }
                     }
 

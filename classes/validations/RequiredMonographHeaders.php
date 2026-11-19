@@ -69,22 +69,31 @@ class RequiredMonographHeaders
         return count($row) === count(self::$monographHeaders);
     }
 
-    public static function validateRowHasAllRequiredFields(object $row, array $processedMonographs = []): bool
+    /**
+     * @return string[] Required column names that are empty on this row
+     */
+    public static function missingRequiredFields(object $row, array $processedMonographs = []): array
     {
         $isMultiVersionOrLocale = !empty($row->versionIdentifier)
             && !empty($row->version)
             && isset($processedMonographs[$row->versionIdentifier]);
 
         if ($isMultiVersionOrLocale) {
-            return true;
+            return [];
         }
 
+        $missing = [];
         foreach (self::$monographRequiredHeaders as $requiredHeader) {
             if (!$row->{$requiredHeader}) {
-                return false;
+                $missing[] = $requiredHeader;
             }
         }
 
-        return true;
+        return $missing;
+    }
+
+    public static function validateRowHasAllRequiredFields(object $row, array $processedMonographs = []): bool
+    {
+        return self::missingRequiredFields($row, $processedMonographs) === [];
     }
 }
