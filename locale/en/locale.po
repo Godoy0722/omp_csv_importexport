@@ -59,10 +59,10 @@ msgid "plugins.importexport.csv.invalidBookCoverImage"
 msgstr "The cover image has an invalid format for this row."
 
 msgid "plugins.importexport.csv.erroWhileSavingBookCoverImage"
-msgstr "An error occurred while saving the book cover image."
+msgstr "The cover image \"{$filename}\" could not be saved."
 
 msgid "plugins.importexport.csv.errorWhileSavingSubmissionFile"
-msgstr "An error occurred while saving the Submission file."
+msgstr "The file \"{$filename}\" could not be saved: {$message}."
 
 msgid "plugins.importexport.csv.errorWhileSavingSupplementaryFile"
 msgstr "An error occurred while saving the supplementary file {$file}."
@@ -70,71 +70,26 @@ msgstr "An error occurred while saving the supplementary file {$file}."
 msgid "plugins.importexport.csv.errorWhileSavingSubmissionGalley"
 msgstr "An error occurred while saving the galley {$galley}."
 
-msgid "plugins.importexport.csv.errorWhileCreatingPublication"
-msgstr "An error occurred while creating the publication."
-
 msgid "plugins.importexport.csv.baseRowFailedForIdentifier"
 msgstr "The base row for identifier \"{$identifier}\" failed validation. This row depends on it and cannot be processed."
-
-msgid "plugins.importexport.csv.invalidImportType"
-msgstr "Invalid import type: \"{$importType}\". Supported types: monographs, users."
 
 msgid "plugins.importexport.csv.invalidCommand"
 msgstr "Invalid command: \"{$command}\". Supported commands: monographs, users."
 
-msgid "plugins.importexport.csv.uploadFailed"
-msgstr "File upload failed. Please try again."
-
-msgid "plugins.importexport.csv.zipExtractionFailed"
-msgstr "ZIP extraction failed: {$reason}"
-
-msgid "plugins.importexport.csv.ExecutedInNSeconds"
-msgstr "\nExecuted in {$seconds} seconds.\n"
-
 msgid "plugins.importexport.csv.form.importType.monographs"
 msgstr "Monographs"
 
-msgid "plugins.importexport.csv.form.importType.users"
-msgstr "Users"
-
-msgid "plugins.importexport.csv.form.importing"
-msgstr "Importing..."
-
-msgid "plugins.importexport.csv.form.imported"
-msgstr "Import complete"
-
 msgid "plugins.importexport.csv.form.zipHelp"
-msgstr "<b>Monographs:</b> Upload a ZIP file built in one of two simple ways:<br><br><b>Option 1 — Everything together:</b> Put your CSV file and all its assets (PDFs, images, and other files) side by side at the top level of the ZIP.<br><br><b>Option 2 — Everything in one folder:</b> Put your CSV file and all its assets inside a single folder, then ZIP that folder. The plugin finds the folder automatically.<br><br>In both cases, the file path you write in each CSV column must match where the file actually sits in the ZIP. If a file is inside a subfolder, use its relative path (e.g., <em>galleys/monograph.pdf</em>). Files named <em>invalid_*.csv</em> are reserved for error output and are skipped during import."
+msgstr "<b>Monographs:</b> Upload a single monographs CSV, or a ZIP that contains the CSV file(s) and the files they reference. The ZIP must have one of these two layouts:<br><br><b>Option 1 — Everything at the top level:</b> the CSV files and their assets (PDFs, images and other files) sit directly at the top level of the ZIP.<br><br><b>Option 2 — Everything in one folder:</b> the CSV files and their assets sit inside exactly one top-level folder.<br><br>Any other layout (CSV files nested deeper, or spread over several top-level folders) is rejected. <em>__MACOSX</em> and folders whose names start with a dot are ignored. The file path you write in each CSV column must match where the file sits relative to the CSV (e.g., <em>galleys/monograph.pdf</em>). Files named <em>invalid_*.csv</em> are reserved for error output and are skipped during import. <a href=\"https://github.com/Godoy0722/omp_csv_importexport/blob/stable-3_5_0/docs/csv-format.md#import-file-structure\" target=\"_blank\" rel=\"noopener noreferrer\">Click here to see the import file structure</a>."
 
 msgid "plugins.importexport.csv.form.examplesHelp"
 msgstr "<b>Need an example?</b> You can view and download ready-to-use sample CSV files here: <a href=\"https://github.com/Godoy0722/omp_csv_importexport/tree/stable-3_5_0/examples/monographs\" target=\"_blank\" rel=\"noopener noreferrer\">CSV examples</a>."
 
 msgid "plugins.importexport.csv.form.userImportHelp"
-msgstr "<b>Users:</b> Import user accounts with roles. Your CSV file should include columns such as pressPath, firstname, lastname, email, roles, and optional fields like affiliation, country, username, tempPassword, reviewInterests, and orcid. Enable the welcome email option to automatically notify new users of their account creation."
+msgstr "<b>Users:</b> Upload a single users CSV, or a ZIP when you have more than one file. Your CSV file should include columns such as pressPath, firstname, lastname, email, roles, and optional fields like affiliation, country, username, tempPassword, reviewInterests, and orcid. Enable the welcome email option to automatically notify new users of their account creation. <a href=\"https://github.com/Godoy0722/omp_csv_importexport/blob/stable-3_5_0/docs/csv-format.md#users-csv-format\" target=\"_blank\" rel=\"noopener noreferrer\">Click here to see how to fill the CSV file</a>."
 
 msgid "plugins.importexport.csv.form.usersExamplesHelp"
-msgstr "<b>Need an example?</b> You can view and download ready-to-use sample user CSV files here: <a href=\"https://github.com/Godoy0722/ops_csv_importexport/tree/stable-3_5_0/examples/users\" target=\"_blank\" rel=\"noopener noreferrer\">CSV examples for users</a>."
-
-msgid "plugins.importexport.csv.results.importCompleteTitle"
-msgstr "Import Complete"
-
-msgid "plugins.importexport.csv.results.importType"
-msgstr "Import Type"
-
-msgid "plugins.importexport.csv.results.filesProcessed"
-msgstr "Files Processed"
-
-msgid "plugins.importexport.csv.results.totalRows"
-msgstr "Total Rows"
-
-msgid "plugins.importexport.csv.results.successfulRows"
-msgstr "Successful Rows"
-
-msgid "plugins.importexport.csv.results.failedRows"
-msgstr "Failed Rows"
-
-msgid "plugins.importexport.csv.results.invalidFiles"
-msgstr "Download invalid rows"
+msgstr "<b>Need an example?</b> You can view and download ready-to-use sample user CSV files here: <a href=\"https://github.com/Godoy0722/omp_csv_importexport/tree/stable-3_5_0/examples/users\" target=\"_blank\" rel=\"noopener noreferrer\">CSV examples for users</a>."
 
 msgid "plugins.importexport.csv.results.intro.monographs"
 msgstr "This is the result of importing <b>monographs</b>. Every row of your CSV files was processed: rows that succeeded were saved to the press, and any that failed are listed further down together with the reason they could not be imported."
@@ -142,41 +97,20 @@ msgstr "This is the result of importing <b>monographs</b>. Every row of your CSV
 msgid "plugins.importexport.csv.results.intro.monographs.dryMode"
 msgstr "This is a <b>Data Validation</b> for <b>monographs</b> — nothing was saved to the press. The summary below is a preview of what a real import would do: it shows which rows would be created and which would fail, along with the reason for each failure. When you are happy with the result, disable <b>Data Validation</b> and import again to apply the changes."
 
-msgid "plugins.importexport.csv.results.intro.users"
-msgstr "This is the result of importing <b>users</b>. Every row of your CSV files was processed: rows that succeeded were created as user accounts, and any that failed are listed further down together with the reason they could not be imported."
-
-msgid "plugins.importexport.csv.results.legend"
-msgstr "The counters below show the totals for this run, followed by a per-file breakdown. Each failed row is listed with its row number and the reason it failed, so you can fix it in the CSV and import again."
-
-msgid "plugins.importexport.csv.results.invalidFilesHint"
-msgstr "For every CSV that had failed rows, a downloadable copy named <b>invalid_&lt;your-file&gt;.csv</b> is generated containing only those failed rows. Click the file name shown below each error table to download it, fix the rows, and import again."
-
-msgid "plugins.importexport.csv.invalidDateFormat"
-msgstr "Invalid date format for {$fieldName}. Expected format: YYYY-MM-DD (e.g., 2024-01-15)."
-
 msgid "plugins.importexport.csv.duplicateDoi"
 msgstr "The DOI \"{$doi}\" already exists in this press."
 
-msgid "plugins.importexport.csv.submissionFileProcessFinished"
-msgstr "Process for file \"{$filename}\" finished. {$processedRows} processed, {$failedRows} failed."
+msgid "plugins.importexport.csv.chapterFieldWithoutChapterTitle"
+msgstr "{$field} has a value at position {$position}, but chapterTitle is empty at that position."
 
-msgid "plugins.importexport.csv.rowImportFailed"
-msgstr "Unexpected error while importing this row: {$message}"
+msgid "plugins.importexport.csv.chapterFieldHasMorePositions"
+msgstr "{$field} has {$count} positions, but chapterTitle has {$expected}. In chapterContributors, \"#\" separates the chapters."
 
-msgid "plugins.importexport.csv.chapterFilesWithoutChapterTitle"
-msgstr "The chapterTitle field is required when chapterFiles is provided."
+msgid "plugins.importexport.csv.errorWhileSavingChapterFile"
+msgstr "The chapter file \"{$filename}\" could not be saved: {$message}."
 
 msgid "plugins.importexport.csv.invalidChapterFile"
 msgstr "Missing chapter file \"{$filename}\" for this submission."
-
-msgid "plugins.importexport.csv.chapterSubtitleWithoutChapterTitle"
-msgstr "The chapterSubtitle field requires a chapterTitle on the same position."
-
-msgid "plugins.importexport.csv.chapterAbstractWithoutChapterTitle"
-msgstr "The chapterAbstract field requires a chapterTitle on the same position."
-
-msgid "plugins.importexport.csv.chapterContributorsWithoutChapterTitle"
-msgstr "The chapterContributors field requires a chapterTitle for each chapter."
 
 msgid "plugins.importexport.csv.invalidChapterContributor"
 msgstr "The chapter contributor \"{$contributor}\" does not match any author in the authors column."

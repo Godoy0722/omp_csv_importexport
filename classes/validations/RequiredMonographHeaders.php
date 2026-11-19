@@ -73,15 +73,33 @@ class RequiredMonographHeaders
     }
 
     /**
+     * Whether the row may inherit its required fields: it is a later version (version > 1),
+     * or it adds a new locale to a version already imported in this run.
+     */
+    public static function isMultiVersionOrLocale(object $row, array $processedMonographs = []): bool
+    {
+        if (!empty($row->version) && !empty($row->versionIdentifier) && (int) $row->version > 1) {
+            return true;
+        }
+
+        if (!empty($row->versionIdentifier) && !empty($row->version)) {
+            $identifier = $row->versionIdentifier;
+            $version = (int) $row->version;
+
+            if (isset($processedMonographs[$identifier][$version]) && !empty($processedMonographs[$identifier][$version])) {
+                return !isset($processedMonographs[$identifier][$version][$row->locale]);
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @return string[] Required column names that are empty on this row
      */
     public static function missingRequiredFields(object $row, array $processedMonographs = []): array
     {
-        $isMultiVersionOrLocale = !empty($row->versionIdentifier)
-            && !empty($row->version)
-            && isset($processedMonographs[$row->versionIdentifier]);
-
-        if ($isMultiVersionOrLocale) {
+        if (self::isMultiVersionOrLocale($row, $processedMonographs)) {
             return [];
         }
 

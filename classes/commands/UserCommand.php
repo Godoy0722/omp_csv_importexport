@@ -144,14 +144,15 @@ class UserCommand
                     InvalidRowValidations::validateRowHasAllRequiredFieldsCommons($data, [RequiredUserHeaders::class, 'missingRequiredFields']);
 
                     $press = CachedEntities::getCachedPress($data->pressPath);
+                    $contextName = __('context.context');
 
-                    InvalidRowValidations::validateContextIsValid($press, $data->pressPath, 'Press');
+                    InvalidRowValidations::validateContextIsValid($press, $data->pressPath, $contextName);
 
                     if ($this->currentPressPath !== null && $data->pressPath !== $this->currentPressPath) {
                         throw new RowValidationException(
                             __('plugins.importexport.csv.contextPathMismatch', [
                                 'contextColumn' => 'pressPath',
-                                'context' => __('context.context'),
+                                'context' => $contextName,
                                 'csvContextPath' => $data->pressPath,
                                 'currentContextPath' => $this->currentPressPath,
                             ])

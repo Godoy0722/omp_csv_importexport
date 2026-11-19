@@ -89,6 +89,77 @@ class RequiredMonographHeadersTest extends BaseTestCase
         $this->assertTrue(RequiredMonographHeaders::validateRowHasAllRequiredFields($row));
     }
 
+    public function testLaterVersionIsMultiVersionWithoutProcessedRows(): void
+    {
+        $row = $this->row(['versionIdentifier' => 'climate-study', 'version' => '2']);
+
+        $this->assertTrue(RequiredMonographHeaders::isMultiVersionOrLocale($row, []));
+    }
+
+    public function testExtraLocaleOfAnImportedVersionSkipsRequiredFields(): void
+    {
+        $processed = ['ml-book-001' => [1 => ['en' => ['submission' => 1]]]];
+        $row = $this->row([
+            'versionIdentifier' => 'ml-book-001',
+            'version' => '1',
+            'locale' => 'pt_BR',
+            'monographTitle' => '',
+            'authors' => '',
+            'datePublished' => '',
+        ]);
+
+        $this->assertTrue(RequiredMonographHeaders::isMultiVersionOrLocale($row, $processed));
+        $this->assertSame([], RequiredMonographHeaders::missingRequiredFields($row, $processed));
+    }
+
+    /**
+     * A duplicate row for a version and locale already imported must still have its required fields.
+     */
+    public function testSameVersionAndLocaleStillRequiresFields(): void
+    {
+        $processed = ['ml-book-001' => [1 => ['en' => ['submission' => 1]]]];
+        $row = $this->row(['versionIdentifier' => 'ml-book-001', 'version' => '1', 'monographTitle' => '']);
+
+        $this->assertFalse(RequiredMonographHeaders::isMultiVersionOrLocale($row, $processed));
+        $this->assertSame(['monographTitle'], RequiredMonographHeaders::missingRequiredFields($row, $processed));
+    }
+
+    public function testVersionOneIsNotWaivedBecauseAnotherVersionOfTheIdentifierExists(): void
+    {
+        $processed = ['climate-study' => [2 => ['en' => ['submission' => 1]]]];
+        $row = $this->row(['versionIdentifier' => 'climate-study', 'version' => '1']);
+
+        $this->assertFalse(RequiredMonographHeaders::isMultiVersionOrLocale($row, $processed));
+    }
+
+    public function testFirstVersionOneRowRequiresFields(): void
+    {
+        $row = $this->row(['versionIdentifier' => 'climate-study', 'version' => '1', 'authors' => '']);
+
+        $this->assertFalse(RequiredMonographHeaders::isMultiVersionOrLocale($row, []));
+        $this->assertFalse(RequiredMonographHeaders::validateRowHasAllRequiredFields($row, []));
+    }
+
+    public function testLaterVersionRowMayOmitRequiredFields(): void
+    {
+        $row = $this->row([
+            'versionIdentifier' => 'climate-study',
+            'version' => '3',
+            'monographTitle' => '',
+            'authors' => '',
+            'datePublished' => '',
+        ]);
+
+        $this->assertTrue(RequiredMonographHeaders::validateRowHasAllRequiredFields($row, []));
+    }
+
+    public function testVersionWithoutIdentifierIsNotMultiVersion(): void
+    {
+        $row = $this->row(['versionIdentifier' => '', 'version' => '2']);
+
+        $this->assertFalse(RequiredMonographHeaders::isMultiVersionOrLocale($row, []));
+    }
+
     /**
      * A row in the old 35-column layout is rejected by the column count.
      */
@@ -101,5 +172,21 @@ class RequiredMonographHeadersTest extends BaseTestCase
             array_fill(0, 35, ''),
             count(RequiredMonographHeaders::$monographHeaders)
         );
+    }
+
+    private function row(array $values): object
+    {
+        $row = (object) array_fill_keys(RequiredMonographHeaders::$monographHeaders, '');
+        foreach (array_merge([
+            'pressPath' => 'press',
+            'locale' => 'en',
+            'monographTitle' => 'Title',
+            'authors' => 'Ana,Silva,ana@example.com,,,',
+            'datePublished' => '2024-01-15',
+        ], $values) as $key => $value) {
+            $row->{$key} = $value;
+        }
+
+        return $row;
     }
 }

@@ -55,18 +55,14 @@ class ChapterValidations
             'chapterAbstract' => $abstracts,
             'chapterFiles' => $files,
         ] as $field => $values) {
-            if (count($values) > $chapterCount) {
-                throw new RowValidationException(__(static::chapterFieldErrorKey($field)));
-            }
+            static::assertNoMorePositionsThanTitles($field, count($values), $chapterCount);
 
             foreach ($values as $index => $value) {
                 if ($value === '') {
                     continue;
                 }
 
-                if ($titles[$index] === '') {
-                    throw new RowValidationException(__(static::chapterFieldErrorKey($field)));
-                }
+                static::assertTitleAtPosition($field, $titles, $index);
 
                 if ($field === 'chapterFiles') {
                     // `;` separates chapters, `,` separates the files of one chapter.
@@ -81,9 +77,7 @@ class ChapterValidations
             }
         }
 
-        if (count($contributorGroups) > $chapterCount) {
-            throw new RowValidationException(__('plugins.importexport.csv.chapterContributorsWithoutChapterTitle'));
-        }
+        static::assertNoMorePositionsThanTitles('chapterContributors', count($contributorGroups), $chapterCount);
 
         $authorEntries = array_filter(
             AuthorsProcessor::splitAuthorEntries((string) ($data->authors ?? '')),
@@ -95,9 +89,7 @@ class ChapterValidations
                 continue;
             }
 
-            if ($titles[$index] === '') {
-                throw new RowValidationException(__('plugins.importexport.csv.chapterContributorsWithoutChapterTitle'));
-            }
+            static::assertTitleAtPosition('chapterContributors', $titles, $index);
 
             foreach ($groupEntries as $entry) {
                 if (!in_array($entry, $authorEntries, true)) {
@@ -108,15 +100,29 @@ class ChapterValidations
     }
 
     /**
-     * Locale key for a chapter field that requires a chapterTitle on the same position.
+     * @throws RowValidationException when a chapter list has more positions than chapterTitle
      */
-    private static function chapterFieldErrorKey(string $field): string
+    private static function assertNoMorePositionsThanTitles(string $field, int $count, int $expected): void
     {
-        return match ($field) {
-            'chapterSubtitle' => 'plugins.importexport.csv.chapterSubtitleWithoutChapterTitle',
-            'chapterAbstract' => 'plugins.importexport.csv.chapterAbstractWithoutChapterTitle',
-            'chapterFiles' => 'plugins.importexport.csv.chapterFilesWithoutChapterTitle',
-            default => 'plugins.importexport.csv.chapterFilesWithoutChapterTitle',
-        };
+        if ($count > $expected) {
+            throw new RowValidationException(__('plugins.importexport.csv.chapterFieldHasMorePositions', [
+                'field' => $field,
+                'count' => $count,
+                'expected' => $expected,
+            ]));
+        }
+    }
+
+    /**
+     * @throws RowValidationException when chapterTitle is empty at the (zero-based) position of a filled value
+     */
+    private static function assertTitleAtPosition(string $field, array $titles, int $index): void
+    {
+        if ($titles[$index] === '') {
+            throw new RowValidationException(__('plugins.importexport.csv.chapterFieldWithoutChapterTitle', [
+                'field' => $field,
+                'position' => $index + 1,
+            ]));
+        }
     }
 }

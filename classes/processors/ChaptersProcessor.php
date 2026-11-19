@@ -171,10 +171,17 @@ class ChaptersProcessor
             $extension = $fileManager->parseFileExtension($filename);
             $submissionDir = sprintf($format, $pressId, $submissionId);
 
-            $fileId = $fileService->add(
-                $filePath,
-                $submissionDir . '/' . uniqid() . '.' . $extension
-            );
+            try {
+                $fileId = $fileService->add(
+                    $filePath,
+                    $submissionDir . '/' . uniqid() . '.' . $extension
+                );
+            } catch (\Exception $e) {
+                throw new RowValidationException(__('plugins.importexport.csv.errorWhileSavingChapterFile', [
+                    'filename' => $filename,
+                    'message' => $e->getMessage(),
+                ]));
+            }
 
             $submissionFile = Repo::submissionFile()->newDataObject();
             $submissionFile->setData('submissionId', $submissionId);

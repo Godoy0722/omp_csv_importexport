@@ -165,9 +165,8 @@ class MonographCommand
 
                 ++$this->processedRows;
 
-                if (!$this->dryMode) {
-                    DB::beginTransaction();
-                }
+                // In dry mode this is a savepoint inside the file transaction, so a failed row's writes don't leak into later rows.
+                DB::beginTransaction();
                 try {
                     InvalidRowValidations::validateRowContainAllFields($fields, $this->expectedRowSize);
 
@@ -194,9 +193,15 @@ class MonographCommand
                     });
 
                     InvalidRowValidations::validateContextVersioningFields($data);
+                    InvalidRowValidations::validateAuthors($data->authors ?? null);
 
                     if (!empty($data->versionIdentifier)) {
                         InvalidRowValidations::validateNoDuplicateVersion($data, $this->processedMonographs);
+                    }
+
+                    // Checked up front so dry mode, which never copies the file, still reports a missing one.
+                    if (!empty($data->filename)) {
+                        InvalidRowValidations::validateSubmissionFiles($data->filename, $this->sourceDir);
                     }
 
                     if ($data->references) {
@@ -219,29 +224,31 @@ class MonographCommand
                     $hasValidCsvUser = !empty($data->username) && !$usedDefaultUser && isset($csvUser);
 
                     $press = CachedEntities::getCachedPress($data->pressPath);
+                    $contextName = __('context.context');
 
-                    InvalidRowValidations::validateContextIsValid($press, $data->pressPath, 'Press');
+                    InvalidRowValidations::validateContextIsValid($press, $data->pressPath, $contextName);
 
                     if ($this->currentPressPath !== null && $data->pressPath !== $this->currentPressPath) {
                         throw new RowValidationException(
                             __('plugins.importexport.csv.contextPathMismatch', [
                                 'contextColumn' => 'pressPath',
-                                'context' => __('context.context'),
+                                'context' => $contextName,
                                 'csvContextPath' => $data->pressPath,
                                 'currentContextPath' => $this->currentPressPath,
                             ])
                         );
                     }
 
-                    InvalidRowValidations::validateContextLocale($press, $data->locale, 'Press');
+                    InvalidRowValidations::validateContextLocale($press, $data->locale, $contextName);
 
                     // Accepts YYYY-MM-DD or DD/MM/YYYY and stores YYYY-MM-DD.
                     $data->datePublished = InvalidRowValidations::validateDateFormat($data->datePublished, 'datePublished');
 
-                    if (!empty($data->doi)) {
-                        $existingDois = CachedEntities::getExistingDois($press->getId());
-                        InvalidRowValidations::validateDoiNotDuplicate($data->doi, $existingDois, $this->importedDois);
-                    }
+                    InvalidRowValidations::validateDoiNotDuplicate(
+                        $data->doi ?? null,
+                        CachedEntities::getExistingDois($press->getId()),
+                        $this->importedDois
+                    );
 
                     $genreName = 'MANUSCRIPT';
                     $genreId = CachedEntities::getCachedGenreId($genreName, $press->getId());
@@ -250,10 +257,10 @@ class MonographCommand
 
                     $userGroupId = CachedEntities::getCachedAuthorUserGroupId($data->pressPath, $press->getId());
 
-                    InvalidRowValidations::validateUserGroupId($userGroupId, $data->pressPath, 'Press');
+                    InvalidRowValidations::validateUserGroupId($userGroupId, $data->pressPath, $contextName);
 
                     if ($data->funders) {
-                        InvalidRowValidations::validateFundingPluginEnabled($data->funders, $press->getId(), 'Press');
+                        InvalidRowValidations::validateFundingPluginEnabled($data->funders, $press->getId(), $contextName);
                         InvalidRowValidations::validateFundersCrossrefRegistry($data->funders, $press->getId());
                     }
 
@@ -265,7 +272,7 @@ class MonographCommand
                             $data->htmlGalleyLocale ?? '',
                             $this->sourceDir,
                             $press,
-                            'Press'
+                            $contextName
                         );
                     }
 
@@ -285,7 +292,9 @@ class MonographCommand
                             $bookCoverImageSaved = $this->fileManager->copyFile($srcFilePath, $destFilePath);
 
                             if (!$bookCoverImageSaved) {
-                                throw new RowValidationException(__('plugins.importexport.csv.erroWhileSavingBookCoverImage'));
+                                throw new RowValidationException(__('plugins.importexport.csv.erroWhileSavingBookCoverImage', [
+                                    'filename' => $data->coverImageFilename,
+                                ]));
                             }
 
                             Repo::publication()->makeThumbnail(
@@ -365,13 +374,13 @@ class MonographCommand
 
                         // Attach PDF file to the publication format if filename provided
                         if (!$this->dryMode && !empty($data->filename)) {
-                            $filePath = "{$this->sourceDir}/{$data->filename}";
-                            $extension = $this->fileManager->parseFileExtension($data->filename);
-                            $submissionDir = sprintf($this->format, $press->getId(), $submission->getId());
-
-                            $fileId = $this->fileService->add(
-                                $filePath,
-                                $submissionDir . '/' . uniqid() . '.' . $extension
+                            $fileId = $this->saveSubmissionFile(
+                                "{$this->sourceDir}/{$data->filename}",
+                                $this->fileManager->parseFileExtension($data->filename),
+                                $press->getId(),
+                                $submission->getId(),
+                                'plugins.importexport.csv.errorWhileSavingSubmissionFile',
+                                ['filename' => $data->filename]
                             );
 
                             PublicationFormatProcessor::createSubmissionFile(
@@ -399,8 +408,14 @@ class MonographCommand
 
                             try {
                                 $submissionDir = sprintf($this->format, $press->getId(), $submission->getId());
-                                $destPath = $submissionDir . '/' . uniqid() . '.html';
-                                $htmlFileId = $this->fileService->add($tempFile, $destPath);
+                                $htmlFileId = $this->saveSubmissionFile(
+                                    $tempFile,
+                                    'html',
+                                    $press->getId(),
+                                    $submission->getId(),
+                                    'plugins.importexport.csv.errorWhileSavingHtmlGalley',
+                                    ['filename' => $htmlFile]
+                                );
 
                                 $htmlPublicationFormatId = PublicationFormatProcessor::createPublicationFormat(
                                     $publication->getId(),
@@ -505,18 +520,14 @@ class MonographCommand
                         $this->trackProcessedMonograph($data, $submission, $publication);
                     }
 
-                    if (!$this->dryMode) {
-                        DB::commit();
+                    DB::commit();
 
-                        $normalizedDoi = InvalidRowValidations::normalizeVorDoi($data->doi ?? null);
-                        if ($normalizedDoi !== null) {
-                            $this->importedDois[$normalizedDoi] = true;
-                        }
+                    $normalizedDoi = InvalidRowValidations::normalizeVorDoi($data->doi ?? null);
+                    if ($normalizedDoi !== null) {
+                        $this->importedDois[$normalizedDoi] = true;
                     }
                 } catch (RowValidationException $e) {
-                    if (!$this->dryMode) {
-                        DB::rollBack();
-                    }
+                    DB::rollBack();
                     $failedIdentifier = $fields[2] ?? null;
                     if (!empty($failedIdentifier)) {
                         $this->failedIdentifiers[$failedIdentifier] = true;
@@ -546,9 +557,7 @@ class MonographCommand
 
                     continue;
                 } catch (\Throwable $e) {
-                    if (!$this->dryMode) {
-                        DB::rollBack();
-                    }
+                    DB::rollBack();
 
                     $failedIdentifier = $fields[2] ?? null;
                     if (!empty($failedIdentifier)) {
@@ -651,6 +660,29 @@ class MonographCommand
     /**
      * Tracks a processed monograph for version management.
      */
+    /**
+     * Store a file in the submission's files directory and return its file id.
+     * A storage failure becomes a row error that names the file; the row transaction is then rolled back.
+     *
+     * @throws RowValidationException
+     */
+    private function saveSubmissionFile(
+        string $sourcePath,
+        string $extension,
+        int $pressId,
+        int $submissionId,
+        string $errorKey,
+        array $errorParams
+    ): int {
+        $submissionDir = sprintf($this->format, $pressId, $submissionId);
+
+        try {
+            return $this->fileService->add($sourcePath, $submissionDir . '/' . uniqid() . '.' . $extension);
+        } catch (\Exception $e) {
+            throw new RowValidationException(__($errorKey, $errorParams + ['message' => $e->getMessage()]));
+        }
+    }
+
     private function trackProcessedMonograph(object $data, Submission $submission, Publication $publication): void
     {
         $identifier = $data->versionIdentifier;

@@ -62,6 +62,7 @@ class ChapterValidationsTest extends BaseTestCase
     public function testValidateChapterFieldsThrowsWhenFilesProvidedWithoutTitle(): void
     {
         $this->expectException(RowValidationException::class);
+        $this->expectExceptionMessage('chapterFieldWithoutChapterTitle');
 
         ChapterValidations::validateChapterFields(
             (object) ['chapterTitle' => null, 'chapterFiles' => 'chapter1.pdf'],
@@ -134,6 +135,7 @@ class ChapterValidationsTest extends BaseTestCase
     public function testValidateChapterFieldsThrowsWhenSubtitleWithoutTitle(): void
     {
         $this->expectException(RowValidationException::class);
+        $this->expectExceptionMessage('chapterFieldWithoutChapterTitle');
 
         ChapterValidations::validateChapterFields(
             (object) ['chapterTitle' => 'Intro;;Conclusion', 'chapterSubtitle' => 'Sub1;Sub2;'],
@@ -147,6 +149,7 @@ class ChapterValidationsTest extends BaseTestCase
     public function testValidateChapterFieldsThrowsWhenAbstractWithoutTitle(): void
     {
         $this->expectException(RowValidationException::class);
+        $this->expectExceptionMessage('chapterFieldHasMorePositions');
 
         ChapterValidations::validateChapterFields(
             (object) ['chapterTitle' => 'Intro', 'chapterAbstract' => 'Abs1;Abs2'],
@@ -160,6 +163,7 @@ class ChapterValidationsTest extends BaseTestCase
     public function testValidateChapterFieldsThrowsWhenListLongerThanTitles(): void
     {
         $this->expectException(RowValidationException::class);
+        $this->expectExceptionMessage('chapterFieldHasMorePositions');
 
         ChapterValidations::validateChapterFields(
             (object) ['chapterTitle' => 'Intro;Methods', 'chapterSubtitle' => 'Sub1;Sub2;Sub3'],
@@ -173,6 +177,7 @@ class ChapterValidationsTest extends BaseTestCase
     public function testValidateChapterFieldsThrowsWhenContributorsWithoutTitle(): void
     {
         $this->expectException(RowValidationException::class);
+        $this->expectExceptionMessage('chapterFieldWithoutChapterTitle');
 
         ChapterValidations::validateChapterFields(
             (object) [
@@ -190,6 +195,7 @@ class ChapterValidationsTest extends BaseTestCase
     public function testValidateChapterFieldsThrowsWhenContributorGroupBeyondLastChapter(): void
     {
         $this->expectException(RowValidationException::class);
+        $this->expectExceptionMessage('chapterFieldHasMorePositions');
 
         ChapterValidations::validateChapterFields(
             (object) [
@@ -302,6 +308,7 @@ class ChapterValidationsTest extends BaseTestCase
     public function testValidateChapterFieldsRejectsOldPipeChapterSeparator(): void
     {
         $this->expectException(RowValidationException::class);
+        $this->expectExceptionMessage('invalidChapterContributor');
 
         ChapterValidations::validateChapterFields(
             (object) [
