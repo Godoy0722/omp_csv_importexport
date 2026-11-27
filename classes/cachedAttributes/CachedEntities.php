@@ -35,8 +35,11 @@ class CachedEntities extends SharedCachedEntities
     /** @var array<string,Chapter> Cache of chapters keyed by publicationId, title, and locale */
     static array $chapters = [];
 
-    /** @var array<int,int|null> First enabled dependent genre ID per press */
+    /** @var array<int,array<string,int>> Enabled dependent genre IDs per press, keyed by genre key in display order */
     static array $dependentGenreIds = [];
+
+    /** File extensions whose dependent files get the Style genre; every other dependent file gets Image */
+    private const STYLE_EXTENSIONS = ['css', 'woff', 'woff2', 'ttf', 'otf', 'eot'];
 
     /** Resets all cached entities. Used after dry-mode rollback to clear stale IDs. */
     public static function reset(): void
@@ -50,17 +53,27 @@ class CachedEntities extends SharedCachedEntities
     }
 
     /**
-     * Retrieves the press's first enabled dependent genre (e.g. Image, Style), or null if it has none.
+     * Retrieves the dependent genre for an HTML file's dependent file, as an editor would pick it:
+     * Style for stylesheets and fonts, Image for anything else. Falls back to the press's first
+     * enabled dependent genre, or null when the press has none.
      * OMP only serves an HTML file's dependent files when their genre is a dependent one.
      */
-    public static function getCachedDependentGenreId(int $pressId): ?int
+    public static function getCachedDependentGenreId(int $pressId, string $filename): ?int
     {
-        if (!array_key_exists($pressId, static::$dependentGenreIds)) {
+        if (!isset(static::$dependentGenreIds[$pressId])) {
             $genreDao = DAORegistry::getDAO('GenreDAO'); /** @var GenreDAO $genreDao */
-            static::$dependentGenreIds[$pressId] = $genreDao->getByDependenceAndContextId(true, $pressId)->next()?->getId();
+            $genres = $genreDao->getByDependenceAndContextId(true, $pressId);
+            static::$dependentGenreIds[$pressId] = [];
+            while ($genre = $genres->next()) {
+                static::$dependentGenreIds[$pressId][$genre->getKey()] = $genre->getId();
+            }
         }
 
-        return static::$dependentGenreIds[$pressId];
+        $genreIds = static::$dependentGenreIds[$pressId];
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        $genreKey = in_array($extension, self::STYLE_EXTENSIONS, true) ? 'STYLE' : 'IMAGE';
+
+        return $genreIds[$genreKey] ?? (reset($genreIds) ?: null);
     }
 
     /**

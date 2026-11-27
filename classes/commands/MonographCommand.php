@@ -462,15 +462,21 @@ class MonographCommand
                                 'text/html'
                             );
 
-                            if (!empty($dependentFiles)) {
+                            $dependentFilesByGenre = [];
+                            foreach ($dependentFiles as $dependentFile) {
+                                $dependentGenreId = CachedEntities::getCachedDependentGenreId($press->getId(), $dependentFile) ?? $genreId;
+                                $dependentFilesByGenre[$dependentGenreId][] = $dependentFile;
+                            }
+
+                            foreach ($dependentFilesByGenre as $dependentGenreId => $genreDependentFiles) {
                                 HtmlGalleyProcessor::createDependentFiles(
-                                    $dependentFiles,
+                                    $genreDependentFiles,
                                     $htmlSubmissionFileId,
                                     $this->sourceDir,
                                     $submissionDir,
                                     $data,
                                     $submission->getId(),
-                                    CachedEntities::getCachedDependentGenreId($press->getId()) ?? $genreId,
+                                    $dependentGenreId,
                                     $fileUploadUser,
                                     $this->fileService
                                 );
