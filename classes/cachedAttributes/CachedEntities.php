@@ -20,6 +20,8 @@ namespace APP\plugins\importexport\csv\classes\cachedAttributes;
 use APP\monograph\Chapter;
 use APP\press\Press;
 use APP\section\Section;
+use PKP\db\DAORegistry;
+use PKP\submission\GenreDAO;
 use APP\plugins\importexport\csv\shared\cachedAttributes\CachedEntities as SharedCachedEntities;
 
 class CachedEntities extends SharedCachedEntities
@@ -33,6 +35,9 @@ class CachedEntities extends SharedCachedEntities
     /** @var array<string,Chapter> Cache of chapters keyed by publicationId, title, and locale */
     static array $chapters = [];
 
+    /** @var array<int,int|null> First enabled dependent genre ID per press */
+    static array $dependentGenreIds = [];
+
     /** Resets all cached entities. Used after dry-mode rollback to clear stale IDs. */
     public static function reset(): void
     {
@@ -41,6 +46,21 @@ class CachedEntities extends SharedCachedEntities
         static::$presses = [];
         static::$existingDoisByPress = [];
         static::$chapters = [];
+        static::$dependentGenreIds = [];
+    }
+
+    /**
+     * Retrieves the press's first enabled dependent genre (e.g. Image, Style), or null if it has none.
+     * OMP only serves an HTML file's dependent files when their genre is a dependent one.
+     */
+    public static function getCachedDependentGenreId(int $pressId): ?int
+    {
+        if (!array_key_exists($pressId, static::$dependentGenreIds)) {
+            $genreDao = DAORegistry::getDAO('GenreDAO'); /** @var GenreDAO $genreDao */
+            static::$dependentGenreIds[$pressId] = $genreDao->getByDependenceAndContextId(true, $pressId)->next()?->getId();
+        }
+
+        return static::$dependentGenreIds[$pressId];
     }
 
     /**

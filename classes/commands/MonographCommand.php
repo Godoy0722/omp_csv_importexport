@@ -438,52 +438,42 @@ class MonographCommand
                             $dependentFiles = array_slice($htmlGalleyFiles, 1);
 
                             $htmlFilePath = "{$this->sourceDir}/{$htmlFile}";
-                            $sanitizedHtml = HtmlGalleyProcessor::sanitizeHtmlFile($htmlFilePath);
 
-                            $tempFile = tempnam(sys_get_temp_dir(), 'omp_html_galley_');
-                            file_put_contents($tempFile, $sanitizedHtml);
+                            $submissionDir = sprintf($this->format, $press->getId(), $submission->getId());
+                            $htmlFileId = $this->saveSubmissionFile(
+                                $htmlFilePath,
+                                'html',
+                                $press->getId(),
+                                $submission->getId(),
+                                'plugins.importexport.csv.errorWhileSavingHtmlGalley',
+                                ['filename' => $htmlFile]
+                            );
 
-                            try {
-                                $submissionDir = sprintf($this->format, $press->getId(), $submission->getId());
-                                $htmlFileId = $this->saveSubmissionFile(
-                                    $tempFile,
-                                    'html',
-                                    $press->getId(),
+                            $htmlPublicationFormatId = PublicationFormatProcessor::createPublicationFormat($publication->getId());
+
+                            $htmlSubmissionFileId = PublicationFormatProcessor::createSubmissionFile(
+                                $submission->getId(),
+                                $htmlPublicationFormatId,
+                                $htmlFileId,
+                                $genreId,
+                                $data->locale,
+                                $fileUploadUser,
+                                basename($htmlFile),
+                                'text/html'
+                            );
+
+                            if (!empty($dependentFiles)) {
+                                HtmlGalleyProcessor::createDependentFiles(
+                                    $dependentFiles,
+                                    $htmlSubmissionFileId,
+                                    $this->sourceDir,
+                                    $submissionDir,
+                                    $data,
                                     $submission->getId(),
-                                    'plugins.importexport.csv.errorWhileSavingHtmlGalley',
-                                    ['filename' => $htmlFile]
-                                );
-
-                                $htmlPublicationFormatId = PublicationFormatProcessor::createPublicationFormat($publication->getId());
-
-                                PublicationFormatProcessor::createSubmissionFile(
-                                    $submission->getId(),
-                                    $htmlPublicationFormatId,
-                                    $htmlFileId,
-                                    $genreId,
-                                    $data->locale,
+                                    CachedEntities::getCachedDependentGenreId($press->getId()) ?? $genreId,
                                     $fileUploadUser,
-                                    basename($htmlFile),
-                                    'text/html'
+                                    $this->fileService
                                 );
-
-                                if (!empty($dependentFiles)) {
-                                    HtmlGalleyProcessor::createDependentFiles(
-                                        $dependentFiles,
-                                        $htmlFileId,
-                                        $this->sourceDir,
-                                        $submissionDir,
-                                        $data,
-                                        $submission->getId(),
-                                        $genreId,
-                                        $fileUploadUser,
-                                        $this->fileService
-                                    );
-                                }
-                            } finally {
-                                if (file_exists($tempFile)) {
-                                    unlink($tempFile);
-                                }
                             }
                         }
                     }

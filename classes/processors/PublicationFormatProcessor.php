@@ -66,6 +66,8 @@ class PublicationFormatProcessor
      * Create and associate a submission file with a publication format.
      * The file is named $fileName in $locale, the row locale (a file has no language of its own in OMP).
      * Assumes open access with no price.
+     *
+     * @return int The new submission file ID
      */
     public static function createSubmissionFile(
         int $submissionId,
@@ -76,7 +78,7 @@ class PublicationFormatProcessor
         User $user,
         string $fileName,
         ?string $mimeType = null
-    ): void {
+    ): int {
         $submissionFile = Repo::submissionFile()->newDataObject();
         $submissionFile->setData('submissionId', $submissionId);
         $submissionFile->setData('uploaderUserId', $user->getId());
@@ -93,6 +95,6 @@ class PublicationFormatProcessor
         $submissionFile->setSalesType('openAccess');
         $submissionFile->setData('viewable', true);
 
-        Repo::submissionFile()->add($submissionFile);
+        return Repo::submissionFile()->add($submissionFile);
     }
 }

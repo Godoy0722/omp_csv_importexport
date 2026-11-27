@@ -64,16 +64,18 @@ class PublicationFormatProcessorTest extends BaseTestCase
         $repository = $this->mockSubmissionFileRepository();
         $repository->shouldReceive('add')->andReturnUsing(function (SubmissionFile $file) use (&$captured) {
             $captured = $file;
-            return 1;
+            return 42;
         });
 
         $user = Mockery::mock(User::class);
         $user->shouldReceive('getId')->andReturn(1);
 
-        PublicationFormatProcessor::createSubmissionFile(10, 7, 99, 2, 'pt_BR', $user, 'book.html', 'text/html');
+        $submissionFileId = PublicationFormatProcessor::createSubmissionFile(10, 7, 99, 2, 'pt_BR', $user, 'book.html', 'text/html');
 
         $this->assertSame('book.html', $captured->getData('name', 'pt_BR'));
         $this->assertSame(7, $captured->getData('assocId'));
+        // HTML dependent files are attached to this submission file ID, not to the stored file's ID
+        $this->assertSame(42, $submissionFileId);
     }
 
     /**
